@@ -13,6 +13,13 @@ five weather values into a short, replayable **12-second soundscape** you can
 > available (1s = 1h); polyphony/chords allowed; an explicit set of sound
 > "levers"; a minimum 3-track arrangement; and per-weather-state colour
 > palettes. "Spectral brightness" is redefined as the **muffling** lever.
+>
+> **Rev 3 (review 2):** two user-selectable sound modes — a **6 s "now"** piece
+> (default) and the **12 s "next 12 h"** forecast piece; concrete
+> **state-classification thresholds** (≤ 10 °C too cold, ≥ 32 °C too hot, with
+> precipitation states taking precedence); and a **centre crosshair** on the map
+> whose position is the active location, with debounced data fetches so you can
+> *explore the map by sound* (Stage 2). MIDI/soundfonts confirmed for Stage 4.
 
 ---
 
@@ -28,8 +35,10 @@ Three tightly-coupled experiences on one screen:
 3. **A generative soundscape** — a finite, replayable 12-second piece synthesised
    from five values (local time, temperature, humidity, cloud cover,
    precipitation) such that a trained listener can identify all five *from the
-   audio alone*. When a 12-hour forecast is available, the piece plays that
-   forecast as a timeline: **1 second of sound = 1 hour ahead.**
+   audio alone*. The user chooses between a **6-second "now"** piece (default,
+   the current conditions) and a **12-second "next 12 h"** piece that plays the
+   forecast as a timeline — **1 second of sound = 1 hour ahead** — available when
+   a 12-hour forecast exists.
 
 The whole product must meet **WCAG 2.1 AA**. Because the signature feature is
 audio, accessibility is not a bolt-on: the sound has a fully equivalent visual
@@ -47,8 +56,9 @@ screen-reader-operable.
 | Map | **Leaflet + OpenStreetMap** (no key, no billing) |
 | Weather data | **Open-Meteo** (no key; current + hourly + daily) |
 | Audio engine | **Tone.js** over the Web Audio API |
-| **Sound length** | **12 s** of sound **+ 1 s fade-out**; finite and replayable — **not** endless |
-| **Forecast timeline** | If a 12 h hourly forecast is available, the 12 s **are** the next 12 h (**1 s = 1 h**); otherwise the current snapshot is held for 12 s |
+| **Sound modes** | **Now** = **6 s** current weather (default) · **Next 12 h** = **12 s** forecast timeline (when available); both **+ 1 s fade**, finite and replayable — **not** endless |
+| **Forecast timeline** | In *Next 12 h* mode the 12 s **are** the next 12 h (**1 s = 1 h**); if no forecast, only *Now* mode is offered |
+| **Map interaction** | Centre **crosshair** = active location; panning updates it with a debounced refetch — "explore the map by sound" (Stage 2) |
 | **Playback controls** | **(Re)start, pause, stop, master volume** (+ per-track volume in the sandbox) |
 | **Polyphony** | **Chords allowed** — polyphonic tracks widen the information bandwidth |
 | **Arrangement** | **≥ 3 tracks**: percussion · background (long/opaque notes) · foreground (short/sharp notes) |
@@ -121,13 +131,15 @@ screen-reader-operable.
 
 ### 4.1 Requirement (updated at review)
 
-- A **finite 12 s** piece **+ 1 s fade-out**, replayable — not an endless loop.
-- If a **12-hour hourly forecast** is available, the 12 seconds **are** the next
-  12 hours: **1 s = 1 h**. The listener hears the *trajectory* — rising temp, an
-  approaching rain band, clearing skies. Without a forecast, the current
-  snapshot is held constant for 12 s.
-- **Identifiability now covers both the starting values and their trend** over
-  the next 12 hours.
+- Two **user-selectable, finite** pieces, each **+ 1 s fade-out** and replayable
+  — never an endless loop:
+  - **Now** *(default)* — a **6 s** piece expressing the **current** weather.
+  - **Next 12 h** — a **12 s** piece that plays the **forecast as a timeline**,
+    **1 s = 1 h**, so the listener hears the *trajectory* (rising temp, an
+    approaching rain band, clearing skies). Offered only when a 12-hour hourly
+    forecast is available; otherwise only *Now* is shown.
+- **Identifiability** covers the current values in *Now* mode, and additionally
+  their **trend** over the next 12 hours in *Next 12 h* mode.
 - **Polyphony is allowed** — chords widen the information bandwidth.
 - **At least three tracks** (see 4.4), all sharing one **global rhythm/tempo** so
   musicality never breaks.
@@ -190,13 +202,14 @@ on chord *quality* without adding a track.
 
 ### 4.6 Playback & controls (updated at review)
 
-- **12 s of sound + 1 s fade-out**; plays once, then stops (replayable).
+- A **mode toggle** picks the piece: **Now** (6 s, default) or **Next 12 h**
+  (12 s); each plays once **+ 1 s fade**, then stops (replayable).
 - Controls: **(Re)start · Pause · Stop · Master volume**; per-track volume and
   instrument/lever overrides live in the sandbox.
 - **Never auto-starts** — requires a user gesture (also satisfies WCAG 1.4.2 and
   browser autoplay policies). All controls keyboard-operable and labelled.
-- A **timeline scrubber** shows the 12 s / 12 h progress with hour ticks; it is
-  the temporal spine of the "what you're hearing" panel.
+- A **progress scrubber** shows elapsed time; in *Next 12 h* mode it carries hour
+  ticks and is the temporal spine of the "what you're hearing" panel.
 
 ### 4.7 Validating identifiability
 
@@ -230,6 +243,23 @@ Each scheme is a full token set (background, surface, ink, muted ink, line,
 accent, secondary). Full hex values live in the design tokens (Stage 0);
 the table above is the anchor. The state→palette mapping is data, so adding a
 new state is a config change.
+
+### 5.1 State classification (first match wins)
+
+Precipitation states take precedence; the temperature extremes beat only the
+non-precipitation states (fair/cloudy). Evaluated against the **current**
+conditions at the active location (the palette reflects "now", independent of
+which sound mode is playing):
+
+1. **Precipitation present** → **Snowy** if it's falling as snow (or temp ≤ 0 °C),
+   else **Rainy**.
+2. Else **temperature ≤ 10 °C** → **Too cold**.
+3. Else **temperature ≥ 32 °C** → **Too hot**.
+4. Else **cloud cover ≥ 60 %** → **Cloudy**.  *(threshold tunable)*
+5. Else → **Fair**.
+
+Thresholds are config, so states are easy to add or retune. `≤`/`≥` boundaries
+match the agreed 10 °C / 32 °C cut-offs.
 
 ---
 
@@ -278,9 +308,11 @@ Each stage ends shippable, with its own tests, a11y check, and a preview deploy.
 - **Data display panel**: all required values, accessible, responsive,
   state-themed.
 - **Sonification engine v1**: 3 tracks (percussion/background/foreground),
-  global rhythm, the 1:1 default mapping, **12 s + 1 s fade**, forecast-timeline
-  playback (1 s = 1 h) with snapshot fallback, polyphonic background.
-- **Transport controls**: restart / pause / stop / volume, never auto-start.
+  global rhythm, the 1:1 default mapping, both **Now (6 s)** and **Next 12 h
+  (12 s, 1 s = 1 h)** modes each **+ 1 s fade**, polyphonic background.
+- **Transport controls**: mode toggle + restart / pause / stop / volume, never
+  auto-start.
+- **State classification + palettes**: apply the §5.1 rules to theme the UI.
 - **"What you're hearing" panel**: time-aware visual equivalent + timeline
   scrubber.
 - **Sandbox**: author synthetic `WeatherTimeline`s, save/load presets, tweak
@@ -290,9 +322,16 @@ Each stage ends shippable, with its own tests, a11y check, and a preview deploy.
   identify the five values (and their 12 h trend) by ear; sandbox enables tuning.
 
 ### Stage 2 — The map
-- Leaflet + OpenStreetMap centred on location; click/keyboard-select updates
-  display + soundscape; accessible interactions + text-list alternative;
-  optional cloud/precip overlay tiles if they don't hurt a11y/perf.
+- Leaflet + OpenStreetMap centred on location, with a fixed **centre crosshair**
+  marking the active location.
+- **Panning updates the active location** (the point under the crosshair); new
+  weather is fetched after a **reasonable debounce** (≈ 400–600 ms after panning
+  settles) — this is the "**explore the map by sound**" interaction.
+- Debounce + response caching + back-off protect Open-Meteo from pan spam.
+- Accessible: keyboard pan also moves the crosshair and refetches; the active
+  location and state change are announced via live regions; a text/search
+  location entry remains as a non-map alternative.
+- Optional cloud/precip overlay tiles if they don't hurt a11y/perf.
 
 ### Stage 3 — Weather warnings
 - Region-appropriate official alert feeds (e.g. US NWS, EU MeteoAlarm) via a
@@ -379,13 +418,16 @@ chain, secrets, and safe client behaviour.
 - **Accessible maps are hard** (Stage 2): budget for keyboard/SR support and a
   text-list alternative.
 - **Warnings coverage is fragmented** (Stage 3): start with one or two feeds.
+- **Map-by-sound legibility** (Stage 2): rapid re-fetches on pan must not produce
+  jarring restarts; decide whether the sound auto-replays on location change or
+  waits for the user, and keep the debounce comfortable.
+- **Resolved at review 2:** too cold ≤ 10 °C, too hot ≥ 32 °C; precipitation
+  states take precedence over the extremes; MIDI/soundfonts land in Stage 4.
 - **Open questions to revisit:**
   - Exact fallback city and default unit rule.
-  - **How the six states are *classified*** from the data (thresholds for "too
-    cold/hot", precedence when several apply) — deferred, defined before Stage 1
-    ships palettes end-to-end.
-  - Whether the hour-tick metronome is always on, or a toggle.
-  - Default instrument set and whether MIDI/soundfonts land in Stage 1 or 4.
+  - Cloud-cover threshold for Fair vs Cloudy (proposed ≥ 60 %).
+  - Whether the hour-tick metronome (Next 12 h mode) is always on, or a toggle.
+  - On pan, does the soundscape auto-play the new location or wait for the user?
 
 ---
 
