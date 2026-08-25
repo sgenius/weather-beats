@@ -67,8 +67,8 @@ screen-reader-operable.
 | Starting mapping | Proposed psychoacoustic default (below); tuned in a sandbox |
 | **Colour** | **Per-weather-state palettes** (fair, cloudy, rainy, snowy, too cold, too hot), each with **light + dark** schemes |
 | Persistence | **Local only** — `localStorage`, no accounts, no backend for user data |
-| Units | **Locale-based, user-toggleable** (metric/imperial) |
-| Default location | Recognisable fallback city when geolocation is denied/unavailable |
+| Units | Default **°F**, toggleable to **°C**; the choice is saved to `localStorage` |
+| Default location | **Oakland, California** when geolocation is denied/unavailable |
 | Audio-for-deaf equivalence | **Live "what you're hearing" panel**, time-aware across the 12 s |
 | Autoplay | **Never auto-starts**; user presses play (WCAG 1.4.2) |
 | Quality bar | **Pragmatic**: core tests + lint + a11y checks now; E2E, deeper security, coverage gates in a hardening stage |
@@ -210,6 +210,9 @@ on chord *quality* without adding a track.
   browser autoplay policies). All controls keyboard-operable and labelled.
 - A **progress scrubber** shows elapsed time; in *Next 12 h* mode it carries hour
   ticks and is the temporal spine of the "what you're hearing" panel.
+- An **hour-tick metronome** (a soft per-second click marking each forecast hour)
+  is available as a **toggle** to help anchor the *Next 12 h* timeline; off by
+  default is fine, the preference is remembered.
 
 ### 4.7 Validating identifiability
 
@@ -251,8 +254,8 @@ non-precipitation states (fair/cloudy). Evaluated against the **current**
 conditions at the active location (the palette reflects "now", independent of
 which sound mode is playing):
 
-1. **Precipitation present** → **Snowy** if it's falling as snow (or temp ≤ 0 °C),
-   else **Rainy**.
+1. **Precipitation present** → **Snowy** if it's falling as snow, else **Rainy**.
+   *(Snow is determined by precipitation type only — never by temperature.)*
 2. Else **temperature ≤ 10 °C** → **Too cold**.
 3. Else **temperature ≥ 32 °C** → **Too hot**.
 4. Else **cloud cover ≥ 60 %** → **Cloudy**.  *(threshold tunable)*
@@ -327,6 +330,10 @@ Each stage ends shippable, with its own tests, a11y check, and a preview deploy.
 - **Panning updates the active location** (the point under the crosshair); new
   weather is fetched after a **reasonable debounce** (≈ 400–600 ms after panning
   settles) — this is the "**explore the map by sound**" interaction.
+- **On pan-settle the soundscape auto-plays** a short preview of the new
+  location — **2.5 s + 0.5 s fade-out** — so exploration is fluid. It **respects
+  a global mute** (never plays while muted) and honours reduced-sound settings;
+  the full Now/Next-12 h pieces stay user-triggered.
 - Debounce + response caching + back-off protect Open-Meteo from pan spam.
 - Accessible: keyboard pan also moves the crosshair and refetches; the active
   location and state change are announced via live regions; a text/search
@@ -418,16 +425,16 @@ chain, secrets, and safe client behaviour.
 - **Accessible maps are hard** (Stage 2): budget for keyboard/SR support and a
   text-list alternative.
 - **Warnings coverage is fragmented** (Stage 3): start with one or two feeds.
-- **Map-by-sound legibility** (Stage 2): rapid re-fetches on pan must not produce
-  jarring restarts; decide whether the sound auto-replays on location change or
-  waits for the user, and keep the debounce comfortable.
-- **Resolved at review 2:** too cold ≤ 10 °C, too hot ≥ 32 °C; precipitation
-  states take precedence over the extremes; MIDI/soundfonts land in Stage 4.
+- **Map-by-sound legibility** (Stage 2): the 2.5 s + 0.5 s pan-settle preview must
+  not feel jarring during rapid panning; tune the debounce so previews chain
+  smoothly rather than stutter.
+- **Resolved:** too cold ≤ 10 °C; too hot ≥ 32 °C; precipitation states take
+  precedence; snow is precipitation-type only (never temperature); MIDI/soundfonts
+  in Stage 4; default unit **°F** (toggle to °C, saved to `localStorage`);
+  fallback location **Oakland, California**; pan-settle **auto-plays a 2.5 s +
+  0.5 s preview, respecting global mute**; the hour-tick metronome is a **toggle**.
 - **Open questions to revisit:**
-  - Exact fallback city and default unit rule.
   - Cloud-cover threshold for Fair vs Cloudy (proposed ≥ 60 %).
-  - Whether the hour-tick metronome (Next 12 h mode) is always on, or a toggle.
-  - On pan, does the soundscape auto-play the new location or wait for the user?
 
 ---
 
