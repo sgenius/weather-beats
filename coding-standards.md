@@ -85,15 +85,8 @@ worth questioning by default.
 
 ## 5. TypeScript style guide
 
-Airbnb does not publish an official TypeScript style guide — only a
-JavaScript one (`airbnb/javascript`). The commonly used TS adapter,
-`eslint-config-airbnb-typescript`, is a third-party bridge package (not
-maintained by Airbnb) built on the older `.eslintrc` config format.
-
-Decision: use **`typescript-eslint`'s own `recommended` + `stylistic`
-configs**, paired with **Prettier** for formatting. These are maintained by
-the TypeScript tooling team itself, support the modern flat-config format, and
-fit a fresh 2026 Vite/TS project without depending on an unofficial bridge.
+Use `typescript-eslint`'s `recommended` + `stylistic` configs (flat-config),
+paired with **Prettier** for formatting.
 
 This is documented here as policy ahead of code existing; the actual
 `eslint.config.js` / `.prettierrc` are wired in during the Stage 0 scaffold
