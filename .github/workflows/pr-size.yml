@@ -1,0 +1,55 @@
+name: PR size gate
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  pr-size:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check changed line count
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const SOFT_LIMIT = 250;
+            const HARD_LIMIT = 400;
+            const EXCLUDED = [
+              /(^|\/)package-lock\.json$/,
+              /(^|\/)pnpm-lock\.yaml$/,
+              /(^|\/)yarn\.lock$/,
+            ];
+
+            const files = await github.paginate(
+              github.rest.pulls.listFiles,
+              {
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                pull_number: context.payload.pull_request.number,
+                per_page: 100,
+              },
+            );
+
+            let changed = 0;
+            for (const file of files) {
+              if (EXCLUDED.some((re) => re.test(file.filename))) continue;
+              changed += file.additions + file.deletions;
+            }
+
+            core.info(`Changed lines (excluding lockfiles): ${changed}`);
+
+            if (changed > HARD_LIMIT) {
+              core.setFailed(
+                `This PR changes ${changed} lines, over the ${HARD_LIMIT}-line hard cap ` +
+                `(see coding-standards.md). Please split it into smaller PRs.`,
+              );
+            } else if (changed > SOFT_LIMIT) {
+              core.warning(
+                `This PR changes ${changed} lines, over the ${SOFT_LIMIT}-line soft ` +
+                `guideline (see coding-standards.md). Consider splitting it.`,
+              );
+            }
