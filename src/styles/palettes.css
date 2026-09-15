@@ -1,7 +1,11 @@
 /*
  * Six weather-state palettes (PLAN.md §5), each with a light and dark scheme.
- * Applied via [data-state] on the app root; [data-theme] overrides the
- * `prefers-color-scheme` default when the user picks a theme explicitly.
+ * Applied via [data-state] on the app root; ThemeProvider always sets
+ * [data-theme] to the resolved 'light' or 'dark' value (never 'system' - it
+ * resolves that itself from `prefers-color-scheme`, see ThemeProvider.tsx),
+ * so each state only needs a plain base rule (light) plus one unconditional
+ * `[data-theme='dark']` override - no `prefers-color-scheme` media query
+ * needed here at all.
  *
  * `--accent` is the exact hex PLAN.md §5 locks in per state; a few of those
  * fall short of the 3:1 UI-component contrast ratio against `--bg` on their
@@ -75,68 +79,6 @@
   --accent: #cc5423;
   --secondary: #e19a7b;
   --focus-ring: var(--ink);
-}
-
-@media (prefers-color-scheme: dark) {
-  [data-state='fair']:not([data-theme='light']) {
-    --bg: #0f1a2a;
-    --surface: #26303f;
-    --ink: #f4f6f9;
-    --muted-ink: #aab4c2;
-    --line: #414a58;
-    --accent: #f0b840;
-    --secondary: #8b7136;
-  }
-
-  [data-state='cloudy']:not([data-theme='light']) {
-    --bg: #161a1f;
-    --surface: #2c3035;
-    --ink: #f4f6f9;
-    --muted-ink: #aab4c2;
-    --line: #474a4f;
-    --accent: #9aa9b8;
-    --secondary: #5f6973;
-  }
-
-  [data-state='rainy']:not([data-theme='light']) {
-    --bg: #0c161c;
-    --surface: #232c32;
-    --ink: #f4f6f9;
-    --muted-ink: #aab4c2;
-    --line: #3f474d;
-    --accent: #3fa7bd;
-    --secondary: #286675;
-  }
-
-  [data-state='snowy']:not([data-theme='light']) {
-    --bg: #141821;
-    --surface: #2a2e37;
-    --ink: #f4f6f9;
-    --muted-ink: #aab4c2;
-    --line: #454951;
-    --accent: #aeb9e0;
-    --secondary: #69718a;
-  }
-
-  [data-state='too-cold']:not([data-theme='light']) {
-    --bg: #0a1319;
-    --surface: #212a2f;
-    --ink: #f4f6f9;
-    --muted-ink: #aab4c2;
-    --line: #3d454a;
-    --accent: #35c0e6;
-    --secondary: #22728a;
-  }
-
-  [data-state='too-hot']:not([data-theme='light']) {
-    --bg: #1c1109;
-    --surface: #322821;
-    --ink: #f4f6f9;
-    --muted-ink: #aab4c2;
-    --line: #4c433e;
-    --accent: #f47a3e;
-    --secondary: #934b26;
-  }
 }
 
 [data-state='fair'][data-theme='dark'] {
