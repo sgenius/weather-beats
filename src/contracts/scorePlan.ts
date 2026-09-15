@@ -15,7 +15,11 @@ export interface NoteEvent {
 
 export interface LeverAutomationPoint {
   timeSeconds: number;
-  /** Normalised 0-1 value for the lever at this point in time. */
+  /**
+   * Normalised 0-1 position of the lever at this instant. Mapping that to
+   * the lever's real-world range/unit (Hz, filter cutoff, wet mix, ...) is
+   * the renderer's job (PLAN.md §4.2), not this contract's.
+   */
   value: number;
 }
 
@@ -25,12 +29,23 @@ export interface TrackScore {
   leverAutomation: Partial<Record<SoundLever, LeverAutomationPoint[]>>;
 }
 
-export interface ScorePlan {
-  mode: PlaybackMode;
-  /** 6s for "now", 12s for "next12h" (PLAN.md §4.1), excluding the fade. */
-  durationSeconds: number;
-  fadeOutSeconds: number;
+interface ScorePlanCommon {
   /** Shared by every track so musicality never breaks (PLAN.md §4.4). */
   bpm: number;
   tracks: TrackScore[];
+  /** Both modes get the same 1s fade (PLAN.md §2). */
+  fadeOutSeconds: 1;
 }
+
+/**
+ * `durationSeconds` is pinned to `mode` by PLAN.md §4.1 (6s "now" / 12s
+ * "next12h", excluding the fade) - a discriminated union instead of two
+ * independent fields makes that pairing correct by construction, so a
+ * `ScorePlan` claiming `mode: 'now'` and `durationSeconds: 12` can't be
+ * constructed at all rather than merely being a bug once it is.
+ */
+export type ScorePlan = ScorePlanCommon &
+  (
+    | { mode: 'now'; durationSeconds: 6 }
+    | { mode: 'next12h'; durationSeconds: 12 }
+  );

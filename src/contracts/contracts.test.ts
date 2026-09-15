@@ -8,11 +8,12 @@ import {
 
 describe('core contracts', () => {
   it('accepts a single-sample WeatherTimeline as the no-forecast fallback', () => {
+    const now = Date.parse('2026-09-13T08:00:00-07:00');
     const timeline: WeatherTimeline = {
       localTimeIso: '2026-09-13T08:00:00-07:00',
       samples: [
         {
-          hourOffset: 0,
+          epochMs: now,
           temperatureC: 18,
           humidityPercent: 55,
           cloudCoverPercent: 20,
@@ -22,7 +23,22 @@ describe('core contracts', () => {
     };
 
     expect(timeline.samples).toHaveLength(1);
-    expect(timeline.samples[0].hourOffset).toBe(0);
+    expect(timeline.samples[0].epochMs).toBe(now);
+  });
+
+  it('lets a forecast sample compute its own hours-ahead from epochMs alone', () => {
+    const now = Date.parse('2026-09-13T08:00:00-07:00');
+    const eightHoursLater: WeatherTimeline['samples'][number] = {
+      epochMs: now + 8 * 60 * 60 * 1000,
+      temperatureC: 24,
+      humidityPercent: 40,
+      cloudCoverPercent: 10,
+      precipitation: { amountMm: 0, type: 'none' },
+    };
+
+    // No hourOffset field needed - each sample is self-contained.
+    const hoursAhead = (eightHoursLater.epochMs - now) / (60 * 60 * 1000);
+    expect(hoursAhead).toBe(8);
   });
 
   it('accepts a 1:1 MappingConfig over the default 3-track arrangement', () => {
