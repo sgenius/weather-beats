@@ -1,2 +1,4 @@
 dist
 *.md
+playwright-report
+test-results
