@@ -444,3 +444,59 @@ Start **Stage 0** (scaffold + CI + the three contracts + the six palettes) and
 immediately spike the **Stage 1 sonification core + sandbox** — the mapping and
 the 12 s/12 h timeline are the highest-risk, highest-value parts, and everything
 downstream consumes the `WeatherTimeline` contract.
+
+---
+
+## 13. Stage 1 delivery plan
+
+Stage 0 is done (scaffold, lint/format, CI, design tokens + six palettes, the
+three core contracts). Stage 1 (§7) is broken into independently-reviewable
+PRs to stay inside the `coding-standards.md` §4 line caps (250 soft / 400
+hard), each branching directly off `main`. A GitHub tracking issue lists them;
+check items off as they merge, and split a PR further if it's heading past the
+soft cap.
+
+1. **Weather service** — Open-Meteo client + normalisation into
+   `WeatherTimeline` (current + 12 h hourly: temp, humidity, cloud cover,
+   precipitation; today's min/max), a small response cache, unit tests. No UI.
+2. **Location & units** — geolocation with permission handling and the
+   Oakland fallback; a non-map location picker (search/enter a place); °F
+   default / °C toggle persisted to `localStorage`.
+3. **State classification** — pure function implementing the §5.1 threshold
+   rules (`WeatherTimeline → WeatherState`) plus a hook applying the
+   resulting `data-state` attribute (and light/dark scheme) to the app root;
+   boundary-condition unit tests.
+4. **Data display panel** — accessible, responsive component showing all
+   required values (temperature, local time, humidity, today's min/max,
+   cloud cover, precipitation), wired to the weather + location services and
+   the state theming from steps 1–3.
+5. **Sonification core** — the default 1:1 `MappingConfig` (§4.5) and the
+   deterministic `buildScorePlan(timeline, mapping, mode)` function: 3
+   tracks, shared global rhythm, both Now (6 s) / Next-12h (12 s) modes,
+   polyphonic background. Pure and Tone.js-free; unit tests for
+   monotonicity, bounds/perceptual separation, and hour-*n*→second-*n*
+   alignment. Likely the largest/riskiest PR — split further (e.g.
+   pitch/chord mapping vs. percussion/reverb/tempo automation) if needed.
+6. **Audio renderer** — an `AudioRenderer` interface plus a Tone.js
+   implementation that plays a `ScorePlan` (oscillators, the muffling
+   low-pass sweep, reverb, gain), kept behind the interface so sonification
+   logic stays hardware-free in tests (`coding-standards.md` §2, LSP/DIP).
+7. **Transport controls** — mode toggle (Now / Next 12 h) plus
+   (re)start / pause / stop / master-volume controls, never auto-starting,
+   fully keyboard-operable, wired to the renderer.
+8. **"What you're hearing" panel** — time-aware visual equivalent of the
+   active `ScorePlan`, synced to the transport's elapsed time/scrubber (the
+   audio's WCAG 1.1.1/1.2.x equivalent).
+9. **Sandbox** — a page to author a synthetic `WeatherTimeline` by hand,
+   save/load named presets in `localStorage`, and tweak the `MappingConfig`
+   and per-track volume — feeding the same display + sonification pipeline
+   as live data.
+10. **Integration & exit criteria** — wire location → weather →
+    display/theme/sonification/transport/hearing-panel together in `App`,
+    update the e2e smoke test and README status, run an axe pass across the
+    new surface, and walk the Stage 1 exit criteria (§7): pick/simulate a
+    location, read all five values, press play, and identify the five values
+    (and the 12 h trend) by ear.
+
+Each PR keeps its own unit tests and, where it adds UI, an axe-core check
+(§6/§8).
