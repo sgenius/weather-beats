@@ -12,6 +12,12 @@ Every PR is reviewed by hand before it merges. No auto-merge. The rules below
 exist to keep PRs small and legible enough that a careful human review is
 actually feasible on every change.
 
+- Reply directly to review comments on GitHub (not just in chat) wherever
+  that's possible; chat is the fallback only.
+- Don't mark a comment thread resolved — that's the reviewer's call.
+- Disagree with a comment? Say so and show the reasoning/evidence directly
+  rather than asking a clarifying question and waiting on another round trip.
+
 ---
 
 ## 2. SOLID
@@ -80,6 +86,13 @@ worth questioning by default.
   proactively break the work into two or more smaller, independently
   reviewable PRs rather than pushing one large PR up toward the 400-line hard
   cap.
+  - Each PR in the split branches off `main` directly — no stacking a PR's
+    branch on top of another PR's branch.
+  - Don't self-subscribe to PR/CI activity to auto-continue; wait for the
+    reviewer to say a PR's been reviewed in the working conversation before
+    starting the next one.
+  - For work spanning several PRs, keep a fresh tracking issue listing them
+    and check items off as they merge.
 
 ---
 
@@ -97,6 +110,10 @@ required in CI on every PR (`PLAN.md` §7 Stage 0, §10).
 
 ## 6. Commits & PRs
 
-- Commit messages are descriptive and explain *why*, not just *what*.
+- Commit messages are descriptive and explain *why*, not just *what*. Same
+  goes for code comments: reserve them for a non-obvious *why*, kept as short
+  as the explanation allows.
 - One logical change per PR — this is what makes the 250/400-line caps
   realistic rather than arbitrary.
+- PR descriptions are succinct but explain the key decisions, not just a
+  bare summary of the diff.
