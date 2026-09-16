@@ -1,0 +1,17 @@
+{
+  "name": "Weather Beats",
+  "short_name": "Weather Beats",
+  "description": "Live weather, sonified into a short replayable soundscape you can listen to and identify by ear.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#eef4fb",
+  "theme_color": "#1f7a8c",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}
