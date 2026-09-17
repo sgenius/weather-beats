@@ -456,47 +456,69 @@ hard), each branching directly off `main`. A GitHub tracking issue lists them;
 check items off as they merge, and split a PR further if it's heading past the
 soft cap.
 
-1. **Weather service** — Open-Meteo client + normalisation into
-   `WeatherTimeline` (current + 12 h hourly: temp, humidity, cloud cover,
-   precipitation; today's min/max), a small response cache, unit tests. No UI.
-2. **Location & units** — geolocation with permission handling and the
-   Oakland fallback; a non-map location picker (search/enter a place); °F
-   default / °C toggle persisted to `localStorage`.
-3. **State classification** — pure function implementing the §5.1 threshold
-   rules (`WeatherTimeline → WeatherState`) plus a hook applying the
-   resulting `data-state` attribute (and light/dark scheme) to the app root;
-   boundary-condition unit tests.
-4. **Data display panel** — accessible, responsive component showing all
-   required values (temperature, local time, humidity, today's min/max,
-   cloud cover, precipitation), wired to the weather + location services and
-   the state theming from steps 1–3.
+**Sequenced as vertical slices, not layers.** Rather than building every
+service first and wiring it all into `App` in one final PR, each step below
+lands something reviewable *in the running app* — starting from a throwaway
+manual-input form and swapping in real data/audio underneath it as later
+steps land. Only one step (5, the pure sonification core) has no visible
+change, and it's immediately followed by the step that makes it audible, so
+there's never more than one PR in a row you have to take on faith.
+
+1. **Sandbox input v0 + data display panel** — a minimal form (temperature,
+   humidity, cloud cover, precipitation, time of day) producing a
+   single-sample `WeatherTimeline`, rendered by the accessible, responsive
+   display panel (all required values, §7). *Verify:* type values in the
+   browser and watch the panel update live.
+2. **State classification + theming** — the pure §5.1 threshold function
+   (`WeatherTimeline → WeatherState`) plus a hook applying the resulting
+   `data-state` attribute (and light/dark scheme) to the app root, driven by
+   the same form. *Verify:* adjust temperature/precipitation in the form and
+   watch the six state palettes switch live, in both themes.
+3. **Location & units** — geolocation with permission handling and the
+   Oakland fallback, a non-map location picker (search/enter a place), and
+   the °F default / °C toggle persisted to `localStorage`; becomes an
+   alternate (and eventually default) input source alongside step 1's form.
+   *Verify:* allow/deny location permission, see a real place resolve, toggle
+   units and watch displayed values convert.
+4. **Weather service** — Open-Meteo client + normalisation into
+   `WeatherTimeline` (current + 12 h hourly, today's min/max), a small
+   response cache; wired in as the live-data source for the same display
+   panel from step 1. *Verify:* see your actual local weather rendered on
+   screen.
 5. **Sonification core** — the default 1:1 `MappingConfig` (§4.5) and the
    deterministic `buildScorePlan(timeline, mapping, mode)` function: 3
    tracks, shared global rhythm, both Now (6 s) / Next-12h (12 s) modes,
    polyphonic background. Pure and Tone.js-free; unit tests for
    monotonicity, bounds/perceptual separation, and hour-*n*→second-*n*
-   alignment. Likely the largest/riskiest PR — split further (e.g.
-   pitch/chord mapping vs. percussion/reverb/tempo automation) if needed.
-6. **Audio renderer** — an `AudioRenderer` interface plus a Tone.js
-   implementation that plays a `ScorePlan` (oscillators, the muffling
-   low-pass sweep, reverb, gain), kept behind the interface so sonification
-   logic stays hardware-free in tests (`coding-standards.md` §2, LSP/DIP).
-7. **Transport controls** — mode toggle (Now / Next 12 h) plus
-   (re)start / pause / stop / master-volume controls, never auto-starting,
-   fully keyboard-operable, wired to the renderer.
+   alignment. The one step with no browser-visible output — verified by its
+   unit tests, as the highest-risk/highest-value logic in the project.
+   Likely the largest PR — split further (e.g. pitch/chord mapping vs.
+   percussion/reverb/tempo automation) if needed.
+6. **Audio renderer + a bare Play button** — an `AudioRenderer` interface
+   plus a Tone.js implementation (oscillators, the muffling low-pass sweep,
+   reverb, gain) behind it, kept separate so sonification logic stays
+   hardware-free in tests (`coding-standards.md` §2, LSP/DIP); one "Play"
+   button in `App` wired to whichever `WeatherTimeline` is currently active.
+   *Verify:* press play, hear the 6 s piece, confirm it tracks the on-screen
+   values.
+7. **Full transport controls + Next-12h mode** — mode toggle (Now / Next
+   12 h) plus (re)start / pause / stop / master-volume controls, never
+   auto-starting, fully keyboard-operable. *Verify:* switch modes, control
+   playback, confirm keyboard operation.
 8. **"What you're hearing" panel** — time-aware visual equivalent of the
    active `ScorePlan`, synced to the transport's elapsed time/scrubber (the
-   audio's WCAG 1.1.1/1.2.x equivalent).
-9. **Sandbox** — a page to author a synthetic `WeatherTimeline` by hand,
-   save/load named presets in `localStorage`, and tweak the `MappingConfig`
-   and per-track volume — feeding the same display + sonification pipeline
-   as live data.
-10. **Integration & exit criteria** — wire location → weather →
-    display/theme/sonification/transport/hearing-panel together in `App`,
-    update the e2e smoke test and README status, run an axe pass across the
-    new surface, and walk the Stage 1 exit criteria (§7): pick/simulate a
-    location, read all five values, press play, and identify the five values
-    (and the 12 h trend) by ear.
+   audio's WCAG 1.1.1/1.2.x equivalent). *Verify:* watch it track what's
+   currently playing.
+9. **Full sandbox** — upgrade step 1's single-sample form into the full
+   experimentation surface: multi-hour timeline authoring (so Next-12h
+   trends can be hand-built), save/load named presets in `localStorage`, and
+   per-track/lever tweaks to the `MappingConfig`. *Verify:* author a "cold
+   clearing to warm, rain arriving at hour 8" timeline and hear/see it play.
+10. **Polish & exit criteria** — update the e2e smoke test and README
+    status, run an axe pass across the whole surface, and walk the Stage 1
+    exit criteria (§7) end to end with live data: pick a location, read all
+    five values, press play, and identify the five values (and the 12 h
+    trend) by ear.
 
 Each PR keeps its own unit tests and, where it adds UI, an axe-core check
 (§6/§8).
