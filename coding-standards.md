@@ -93,6 +93,16 @@ worth questioning by default.
     starting the next one.
   - For work spanning several PRs, keep a fresh tracking issue listing them
     and check items off as they merge.
+  - **Split vertically, not by layer.** When multi-step work touches the
+    app (as opposed to, say, a standalone library), prefer a sequence of
+    thin end-to-end slices over grouping by architectural layer (e.g. "all
+    services" then "all UI" then "wire it up"). Each PR should land
+    something a reviewer can exercise in a running browser — a new control,
+    a visible state change, an audible result — rather than only unit-tested
+    plumbing with nothing to click until a final integration PR. A PR with
+    no visible/audible output is sometimes unavoidable (e.g. a pure,
+    high-risk core worth reviewing on its own), but keep those to a single
+    PR at a time, immediately followed by the one that surfaces it.
 
 ---
 
