@@ -24,7 +24,7 @@ describe('LocationStatus', () => {
     const { container } = render(
       <LocationStatus
         location={{
-          status: 'granted',
+          status: 'located',
           coordinates: { latitude: 1, longitude: 2 },
           label: 'Your location',
         }}

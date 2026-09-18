@@ -23,7 +23,7 @@ afterEach(() => {
 });
 
 describe('useActiveLocation', () => {
-  it('starts locating, then adopts the granted position', async () => {
+  it('starts locating, then adopts the located position', async () => {
     mockGeolocation((success) => {
       success({
         coords: { latitude: 51.5, longitude: -0.12 },
@@ -33,7 +33,7 @@ describe('useActiveLocation', () => {
     const { result } = renderHook(() => useActiveLocation());
     expect(result.current.status).toBe('locating');
 
-    await waitFor(() => expect(result.current.status).toBe('granted'));
+    await waitFor(() => expect(result.current.status).toBe('located'));
     expect(result.current.coordinates).toEqual({
       latitude: 51.5,
       longitude: -0.12,

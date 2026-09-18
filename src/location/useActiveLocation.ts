@@ -5,7 +5,7 @@ import {
   OAKLAND_FALLBACK,
 } from './geolocation';
 
-export type LocationStatus = 'locating' | 'granted' | 'fallback';
+export type LocationStatus = 'locating' | 'located' | 'fallback';
 
 export interface ActiveLocation {
   status: LocationStatus;
@@ -47,7 +47,7 @@ export function useActiveLocation(): ActiveLocation {
       .then((coordinates) => {
         if (!cancelled) {
           setLocation({
-            status: 'granted',
+            status: 'located',
             coordinates,
             label: 'Your location',
           });
