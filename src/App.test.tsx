@@ -37,6 +37,13 @@ describe('App', () => {
     expect(document.documentElement.dataset.state).toBe('too-cold');
   });
 
+  it('falls back to Oakland when geolocation is unavailable, as in this test environment', () => {
+    render(<App />);
+    expect(
+      screen.getByText(/Oakland, California \(fallback\)/),
+    ).toBeInTheDocument();
+  });
+
   it('has no detectable accessibility violations', async () => {
     const { container } = render(<App />);
     expect(await axe(container)).toHaveNoViolations();
