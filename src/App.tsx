@@ -1,5 +1,7 @@
 import { useState } from 'react';
 import { DataDisplayPanel } from './display/DataDisplayPanel';
+import { LocationStatus } from './location/LocationStatus';
+import { useActiveLocation } from './location/useActiveLocation';
 import { SandboxNowForm } from './sandbox/SandboxNowForm';
 import {
   DEFAULT_SANDBOX_VALUES,
@@ -15,6 +17,7 @@ function AppContent() {
     DEFAULT_SANDBOX_VALUES,
   );
   const timeline = sandboxValuesToTimeline(sandboxValues);
+  const location = useActiveLocation();
   useWeatherStateTheme(classifyWeatherState(timeline.samples[0]));
 
   return (
@@ -26,6 +29,7 @@ function AppContent() {
         classified weather state (PLAN.md §5.1) - try adding rain or dropping
         the temperature below 10°C.
       </p>
+      <LocationStatus location={location} />
       <DataDisplayPanel timeline={timeline} />
       <SandboxNowForm values={sandboxValues} onChange={setSandboxValues} />
     </main>
