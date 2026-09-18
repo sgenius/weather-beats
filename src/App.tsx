@@ -1,35 +1,30 @@
-import type { WeatherTimeline } from './contracts';
+import { useState } from 'react';
 import { DataDisplayPanel } from './display/DataDisplayPanel';
+import { SandboxNowForm } from './sandbox/SandboxNowForm';
+import {
+  DEFAULT_SANDBOX_VALUES,
+  sandboxValuesToTimeline,
+  type SandboxNowValues,
+} from './sandbox/sandboxTimeline';
 import { ThemeProvider } from './theme/ThemeProvider';
 
-// Placeholder until the sandbox input form and the live weather service
-// (Stage 1 steps 1b/4) land - lets the display panel be built and checked
-// against realistic values before either exists.
-const PLACEHOLDER_TIMELINE: WeatherTimeline = {
-  localTimeIso: new Date(2026, 8, 13, 8, 0).toISOString(),
-  samples: [
-    {
-      epochMs: new Date(2026, 8, 13, 8, 0).getTime(),
-      temperatureC: 18,
-      humidityPercent: 62,
-      cloudCoverPercent: 40,
-      precipitation: { type: 'none', amountMm: 0 },
-    },
-  ],
-  todayTemperatureRangeC: { min: 14, max: 23 },
-  todayHumidityRangePercent: { min: 48, max: 78 },
-};
-
 function App() {
+  const [sandboxValues, setSandboxValues] = useState<SandboxNowValues>(
+    DEFAULT_SANDBOX_VALUES,
+  );
+  const timeline = sandboxValuesToTimeline(sandboxValues);
+
   return (
     <ThemeProvider>
       <main>
         <h1>Weather Beats</h1>
         <p>
-          Stage 1 in progress: the panel below reads a placeholder timeline
-          until the sandbox input and the live weather service land.
+          Stage 1 in progress: the sandbox below stands in for live weather
+          until the location and weather services land, so the display panel can
+          be built and checked as we go.
         </p>
-        <DataDisplayPanel timeline={PLACEHOLDER_TIMELINE} />
+        <DataDisplayPanel timeline={timeline} />
+        <SandboxNowForm values={sandboxValues} onChange={setSandboxValues} />
       </main>
     </ThemeProvider>
   );
