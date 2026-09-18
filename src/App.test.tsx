@@ -19,6 +19,24 @@ describe('App', () => {
     expect(screen.getByText('30°C')).toBeInTheDocument();
   });
 
+  it('re-themes the page to match the classified weather state as sandbox input changes', () => {
+    render(<App />);
+    expect(document.documentElement.dataset.state).toBe('fair');
+
+    fireEvent.change(screen.getByLabelText('Precipitation'), {
+      target: { value: 'rain' },
+    });
+    expect(document.documentElement.dataset.state).toBe('rainy');
+
+    fireEvent.change(screen.getByLabelText('Precipitation'), {
+      target: { value: 'none' },
+    });
+    fireEvent.change(screen.getByLabelText('Temperature (°C)'), {
+      target: { value: '5' },
+    });
+    expect(document.documentElement.dataset.state).toBe('too-cold');
+  });
+
   it('has no detectable accessibility violations', async () => {
     const { container } = render(<App />);
     expect(await axe(container)).toHaveNoViolations();
