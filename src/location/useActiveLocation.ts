@@ -5,7 +5,16 @@ import {
   OAKLAND_FALLBACK,
 } from './geolocation';
 
-export type LocationStatus = 'locating' | 'located' | 'fallback' | 'searched';
+/**
+ * 'locating' is the only pending status - a placeholder while we wait on
+ * the browser's geolocation prompt. The other three are all settled/final,
+ * distinguished only by how the location was determined: automatically via
+ * geolocation ('located'), automatically defaulted ('fallback'), or
+ * explicitly typed by the user ('userSearched') - which is also the one
+ * `setSearchedLocation` can never let a late geolocation result overwrite.
+ */
+export type LocationStatus =
+  'locating' | 'located' | 'fallback' | 'userSearched';
 
 export interface ActiveLocation {
   status: LocationStatus;
@@ -73,7 +82,7 @@ export function useActiveLocation(): UseActiveLocationResult {
 
   function setSearchedLocation(coordinates: Coordinates, label: string) {
     overriddenRef.current = true;
-    setLocation({ status: 'searched', coordinates, label });
+    setLocation({ status: 'userSearched', coordinates, label });
   }
 
   return { location, setSearchedLocation };

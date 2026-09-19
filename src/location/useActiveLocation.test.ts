@@ -63,7 +63,7 @@ describe('useActiveLocation', () => {
     );
 
     expect(result.current.location).toEqual({
-      status: 'searched',
+      status: 'userSearched',
       coordinates: { latitude: 48.85, longitude: 2.35 },
       label: 'Paris',
     });
@@ -90,6 +90,6 @@ describe('useActiveLocation', () => {
       } as GeolocationPosition);
     });
 
-    expect(result.current.location.status).toBe('searched');
+    expect(result.current.location.status).toBe('userSearched');
   });
 });
