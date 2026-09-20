@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { DataDisplayPanel } from './display/DataDisplayPanel';
+import { LocationPicker } from './location/LocationPicker';
 import { LocationStatus } from './location/LocationStatus';
 import { useActiveLocation } from './location/useActiveLocation';
 import { SandboxNowForm } from './sandbox/SandboxNowForm';
@@ -17,7 +18,7 @@ function AppContent() {
     DEFAULT_SANDBOX_VALUES,
   );
   const timeline = sandboxValuesToTimeline(sandboxValues);
-  const location = useActiveLocation();
+  const { location, setSearchedLocation } = useActiveLocation();
   useWeatherStateTheme(classifyWeatherState(timeline.samples[0]));
 
   return (
@@ -30,6 +31,7 @@ function AppContent() {
         the temperature below 10°C.
       </p>
       <LocationStatus location={location} />
+      <LocationPicker onLocate={setSearchedLocation} />
       <DataDisplayPanel timeline={timeline} />
       <SandboxNowForm values={sandboxValues} onChange={setSandboxValues} />
     </main>

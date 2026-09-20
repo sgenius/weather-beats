@@ -1,7 +1,8 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { axe } from 'jest-axe';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import App from './App';
+import * as geocoding from './location/geocoding';
 
 describe('App', () => {
   it('renders the app heading', () => {
@@ -42,6 +43,20 @@ describe('App', () => {
     expect(
       screen.getByText(/Oakland, California \(fallback\)/),
     ).toBeInTheDocument();
+  });
+
+  it('updates the active location when a search resolves', async () => {
+    vi.spyOn(geocoding, 'searchPlaces').mockResolvedValue([
+      { name: 'Paris', latitude: 48.85, longitude: 2.35, country: 'France' },
+    ]);
+    render(<App />);
+
+    fireEvent.change(screen.getByLabelText('Search for a place'), {
+      target: { value: 'Paris' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Search' }));
+
+    expect(await screen.findByText(/Paris, France/)).toBeInTheDocument();
   });
 
   it('has no detectable accessibility violations', async () => {
