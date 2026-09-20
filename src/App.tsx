@@ -12,6 +12,8 @@ import {
 import { classifyWeatherState } from './theme/classifyWeatherState';
 import { ThemeProvider } from './theme/ThemeProvider';
 import { useWeatherStateTheme } from './theme/useWeatherStateTheme';
+import { UnitToggle } from './units/UnitToggle';
+import { useTemperatureUnit } from './units/useTemperatureUnit';
 
 function AppContent() {
   const [sandboxValues, setSandboxValues] = useState<SandboxNowValues>(
@@ -19,6 +21,7 @@ function AppContent() {
   );
   const timeline = sandboxValuesToTimeline(sandboxValues);
   const { location, setSearchedLocation } = useActiveLocation();
+  const [unit, setUnit] = useTemperatureUnit();
   useWeatherStateTheme(classifyWeatherState(timeline.samples[0]));
 
   return (
@@ -32,7 +35,8 @@ function AppContent() {
       </p>
       <LocationStatus location={location} />
       <LocationPicker onLocate={setSearchedLocation} />
-      <DataDisplayPanel timeline={timeline} />
+      <UnitToggle unit={unit} onChange={setUnit} />
+      <DataDisplayPanel timeline={timeline} unit={unit} />
       <SandboxNowForm values={sandboxValues} onChange={setSandboxValues} />
     </main>
   );
