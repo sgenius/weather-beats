@@ -5,7 +5,7 @@ import type { WeatherTimeline } from '../contracts';
 import { DataDisplayPanel } from './DataDisplayPanel';
 
 const baseTimeline: WeatherTimeline = {
-  localTimeIso: new Date(2026, 8, 13, 8, 0).toISOString(),
+  localTimeIso: '2026-09-13T08:00',
   samples: [
     {
       epochMs: new Date(2026, 8, 13, 8, 0).getTime(),
@@ -20,6 +20,7 @@ const baseTimeline: WeatherTimeline = {
 describe('DataDisplayPanel', () => {
   it('renders the required current-conditions values in the given unit', () => {
     render(<DataDisplayPanel timeline={baseTimeline} unit="celsius" />);
+    expect(screen.getByText('8:00 AM')).toBeInTheDocument();
     expect(screen.getByText('18°C')).toBeInTheDocument();
     expect(screen.getByText('55%')).toBeInTheDocument();
     expect(screen.getByText('20%')).toBeInTheDocument();
@@ -45,6 +46,20 @@ describe('DataDisplayPanel', () => {
     );
     expect(screen.getByText('12–24°C')).toBeInTheDocument();
     expect(screen.getByText('40–70%')).toBeInTheDocument();
+  });
+
+  it('displays localTimeIso verbatim, independent of epochMs or the runtime timezone', () => {
+    render(
+      <DataDisplayPanel
+        timeline={{
+          ...baseTimeline,
+          localTimeIso: '2026-09-13T23:30',
+          samples: [{ ...baseTimeline.samples[0], epochMs: 0 }],
+        }}
+        unit="celsius"
+      />,
+    );
+    expect(screen.getByText('11:30 PM')).toBeInTheDocument();
   });
 
   it('has no detectable accessibility violations', async () => {

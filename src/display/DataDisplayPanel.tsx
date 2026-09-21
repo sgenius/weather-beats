@@ -27,7 +27,7 @@ export function DataDisplayPanel({ timeline, unit }: DataDisplayPanelProps) {
       <h2>Current weather</h2>
       <dl>
         <dt>Local time</dt>
-        <dd>{formatLocalTime(current.epochMs)}</dd>
+        <dd>{formatLocalTime(timeline.localTimeIso)}</dd>
 
         <dt>Temperature</dt>
         <dd>{formatTemperature(current.temperatureC, unit)}</dd>

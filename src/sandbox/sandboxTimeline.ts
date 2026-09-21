@@ -6,6 +6,7 @@ import type {
   PrecipitationType,
   WeatherTimeline,
 } from '../contracts';
+import { toNaiveLocalIso } from '../time/naiveLocalIso';
 
 export interface SandboxNowValues {
   temperatureC: number;
@@ -51,7 +52,7 @@ export function sandboxValuesToTimeline(
   };
 
   return {
-    localTimeIso: sample.toISOString(),
+    localTimeIso: toNaiveLocalIso(sample),
     samples: [
       {
         epochMs: sample.getTime(),

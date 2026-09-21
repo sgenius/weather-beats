@@ -42,8 +42,7 @@ describe('formatWeather', () => {
     expect(formatPercentRange({ min: 40, max: 80 })).toBe('40–80%');
   });
 
-  it('formats local time from an epoch', () => {
-    const epochMs = new Date(2026, 8, 13, 8, 5).getTime();
-    expect(formatLocalTime(epochMs)).toMatch(/8:05/);
+  it('formats local time from a naive local ISO string', () => {
+    expect(formatLocalTime('2026-09-13T08:05')).toBe('8:05 AM');
   });
 });
