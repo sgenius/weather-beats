@@ -1,10 +1,14 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { axe } from 'jest-axe';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import App from './App';
 import * as geocoding from './location/geocoding';
 
 describe('App', () => {
+  beforeEach(() => {
+    localStorage.clear();
+  });
+
   it('renders the app heading', () => {
     render(<App />);
     expect(
@@ -17,6 +21,19 @@ describe('App', () => {
     fireEvent.change(screen.getByLabelText('Temperature (°C)'), {
       target: { value: '30' },
     });
+    // Sandbox input is always Celsius; the panel shows the default unit (°F).
+    expect(screen.getByText('86°F')).toBeInTheDocument();
+  });
+
+  it('converts the displayed temperature when the unit toggle changes', () => {
+    render(<App />);
+    fireEvent.change(screen.getByLabelText('Temperature (°C)'), {
+      target: { value: '30' },
+    });
+    expect(screen.getByText('86°F')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByLabelText('°C'));
+
     expect(screen.getByText('30°C')).toBeInTheDocument();
   });
 

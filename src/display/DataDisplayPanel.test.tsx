@@ -18,8 +18,8 @@ const baseTimeline: WeatherTimeline = {
 };
 
 describe('DataDisplayPanel', () => {
-  it('renders the required current-conditions values', () => {
-    render(<DataDisplayPanel timeline={baseTimeline} />);
+  it('renders the required current-conditions values in the given unit', () => {
+    render(<DataDisplayPanel timeline={baseTimeline} unit="celsius" />);
     expect(screen.getByText('18°C')).toBeInTheDocument();
     expect(screen.getByText('55%')).toBeInTheDocument();
     expect(screen.getByText('20%')).toBeInTheDocument();
@@ -27,7 +27,12 @@ describe('DataDisplayPanel', () => {
     expect(screen.queryByText(/temperature range/i)).not.toBeInTheDocument();
   });
 
-  it('renders the today ranges when present', () => {
+  it('converts the temperature when the unit is fahrenheit', () => {
+    render(<DataDisplayPanel timeline={baseTimeline} unit="fahrenheit" />);
+    expect(screen.getByText('64°F')).toBeInTheDocument();
+  });
+
+  it('renders the today ranges, converted, when present', () => {
     render(
       <DataDisplayPanel
         timeline={{
@@ -35,6 +40,7 @@ describe('DataDisplayPanel', () => {
           todayTemperatureRangeC: { min: 12, max: 24 },
           todayHumidityRangePercent: { min: 40, max: 70 },
         }}
+        unit="celsius"
       />,
     );
     expect(screen.getByText('12–24°C')).toBeInTheDocument();
@@ -42,7 +48,9 @@ describe('DataDisplayPanel', () => {
   });
 
   it('has no detectable accessibility violations', async () => {
-    const { container } = render(<DataDisplayPanel timeline={baseTimeline} />);
+    const { container } = render(
+      <DataDisplayPanel timeline={baseTimeline} unit="fahrenheit" />,
+    );
     expect(await axe(container)).toHaveNoViolations();
   });
 });

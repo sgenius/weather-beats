@@ -1,4 +1,5 @@
 import type { WeatherTimeline } from '../contracts';
+import type { TemperatureUnit } from '../units/temperatureUnit';
 import {
   formatLocalTime,
   formatPercent,
@@ -10,6 +11,7 @@ import {
 
 interface DataDisplayPanelProps {
   timeline: WeatherTimeline;
+  unit: TemperatureUnit;
 }
 
 /**
@@ -17,7 +19,7 @@ interface DataDisplayPanelProps {
  * first ("now") sample of a WeatherTimeline. Source-agnostic: it doesn't
  * know or care whether the timeline came from the sandbox or live weather.
  */
-export function DataDisplayPanel({ timeline }: DataDisplayPanelProps) {
+export function DataDisplayPanel({ timeline, unit }: DataDisplayPanelProps) {
   const [current] = timeline.samples;
 
   return (
@@ -28,12 +30,14 @@ export function DataDisplayPanel({ timeline }: DataDisplayPanelProps) {
         <dd>{formatLocalTime(current.epochMs)}</dd>
 
         <dt>Temperature</dt>
-        <dd>{formatTemperature(current.temperatureC)}</dd>
+        <dd>{formatTemperature(current.temperatureC, unit)}</dd>
 
         {timeline.todayTemperatureRangeC && (
           <>
             <dt>Today&apos;s temperature range</dt>
-            <dd>{formatTemperatureRange(timeline.todayTemperatureRangeC)}</dd>
+            <dd>
+              {formatTemperatureRange(timeline.todayTemperatureRangeC, unit)}
+            </dd>
           </>
         )}
 

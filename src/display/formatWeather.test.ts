@@ -9,9 +9,14 @@ import {
 } from './formatWeather';
 
 describe('formatWeather', () => {
-  it('rounds percentages and temperatures', () => {
+  it('rounds percentages', () => {
     expect(formatPercent(54.6)).toBe('55%');
-    expect(formatTemperature(17.4)).toBe('17°C');
+  });
+
+  it('formats temperature in either unit, converting from Celsius', () => {
+    expect(formatTemperature(17.4, 'celsius')).toBe('17°C');
+    expect(formatTemperature(0, 'fahrenheit')).toBe('32°F');
+    expect(formatTemperature(100, 'fahrenheit')).toBe('212°F');
   });
 
   it('formats precipitation, including "none"', () => {
@@ -24,8 +29,16 @@ describe('formatWeather', () => {
     );
   });
 
-  it('formats temperature and percent ranges', () => {
-    expect(formatTemperatureRange({ min: 12.4, max: 21.6 })).toBe('12–22°C');
+  it('formats a temperature range in either unit', () => {
+    expect(formatTemperatureRange({ min: 12.4, max: 21.6 }, 'celsius')).toBe(
+      '12–22°C',
+    );
+    expect(formatTemperatureRange({ min: 0, max: 100 }, 'fahrenheit')).toBe(
+      '32–212°F',
+    );
+  });
+
+  it('formats a percent range', () => {
     expect(formatPercentRange({ min: 40, max: 80 })).toBe('40–80%');
   });
 
