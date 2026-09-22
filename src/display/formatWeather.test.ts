@@ -42,7 +42,14 @@ describe('formatWeather', () => {
     expect(formatPercentRange({ min: 40, max: 80 })).toBe('40–80%');
   });
 
-  it('formats local time from a naive local ISO string', () => {
-    expect(formatLocalTime('2026-09-13T08:05')).toBe('8:05 AM');
+  it('formats local time in an explicit time zone, regardless of the runtime zone', () => {
+    const epochMs = Date.parse('2026-01-15T20:00:00Z'); // no-DST date, unambiguous offsets
+    expect(formatLocalTime(epochMs, 'America/Los_Angeles')).toBe('12:00 PM');
+    expect(formatLocalTime(epochMs, 'UTC')).toBe('8:00 PM');
+  });
+
+  it("defaults to the runtime's own time zone when none is given", () => {
+    const epochMs = new Date(2026, 8, 13, 8, 5).getTime();
+    expect(formatLocalTime(epochMs)).toMatch(/8:05/);
   });
 });

@@ -4,6 +4,11 @@ import type { Coordinates } from '../location/geolocation';
 const FORECAST_URL = 'https://api.open-meteo.com/v1/forecast';
 
 export interface OpenMeteoResponse {
+  /** IANA name (e.g. "America/Los_Angeles") - present because we request `timezone=auto`. */
+  timezone: string;
+  timezone_abbreviation: string;
+  /** The offset `current.time`/`hourly.time` are already shifted by - needed to recover a real epoch from them. */
+  utc_offset_seconds: number;
   current: {
     time: string;
   };

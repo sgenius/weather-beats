@@ -1,20 +1,23 @@
 // Pure formatting helpers for the data display panel - kept separate from
 // the component so they're unit-testable without rendering anything.
 import type { Precipitation, WeatherRange } from '../contracts';
-import { formatNaiveLocalTime } from '../time/naiveLocalIso';
 import {
   celsiusToFahrenheit,
   type TemperatureUnit,
 } from '../units/temperatureUnit';
 
 /**
- * Formats WeatherTimeline.localTimeIso, which is always the active
- * location's own wall-clock time (see its doc comment) - never routed
- * through a Date/timezone conversion, so it displays correctly even when
- * the location's timezone differs from the browser's own.
+ * Formats an epochMs as wall-clock time in `timeZone` (WeatherTimeline's
+ * IANA time zone name) - correct regardless of the browser's own zone.
+ * `timeZone` undefined defaults to the browser's own zone, which is what
+ * the sandbox (no location of its own) wants.
  */
-export function formatLocalTime(localTimeIso: string): string {
-  return formatNaiveLocalTime(localTimeIso);
+export function formatLocalTime(epochMs: number, timeZone?: string): string {
+  return new Date(epochMs).toLocaleTimeString(undefined, {
+    hour: 'numeric',
+    minute: '2-digit',
+    timeZone,
+  });
 }
 
 export function formatPercent(value: number): string {

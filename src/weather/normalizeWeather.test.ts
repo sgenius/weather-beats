@@ -13,6 +13,9 @@ function buildResponse(
   );
 
   return {
+    timezone: 'America/Los_Angeles',
+    timezone_abbreviation: 'PDT',
+    utc_offset_seconds: -25200, // UTC-7
     current: { time: '2026-09-21T14:32' },
     hourly: {
       time,
@@ -31,9 +34,17 @@ function buildResponse(
 }
 
 describe('normalizeOpenMeteoResponse', () => {
-  it('uses the current time verbatim as localTimeIso', () => {
+  it('carries the IANA time zone through for display', () => {
     const timeline = normalizeOpenMeteoResponse(buildResponse());
-    expect(timeline.localTimeIso).toBe('2026-09-21T14:32');
+    expect(timeline.timeZone).toBe('America/Los_Angeles');
+  });
+
+  it('computes a real UTC epoch from the naive local time and the UTC offset', () => {
+    const timeline = normalizeOpenMeteoResponse(buildResponse());
+    // 14:00 local at UTC-7 is 21:00 UTC the same day.
+    expect(timeline.samples[0].epochMs).toBe(
+      Date.parse('2026-09-21T21:00:00Z'),
+    );
   });
 
   it('starts samples at the current hour and takes the next 12 hours (13 total)', () => {
@@ -41,6 +52,10 @@ describe('normalizeOpenMeteoResponse', () => {
     expect(timeline.samples).toHaveLength(13);
     expect(timeline.samples[0].temperatureC).toBe(14); // hour 14's fixture value
     expect(timeline.samples[12].temperatureC).toBe(26); // hour 14 + 12
+    // Consecutive samples must stay correctly 1 hour apart in real time too.
+    expect(timeline.samples[1].epochMs - timeline.samples[0].epochMs).toBe(
+      60 * 60 * 1000,
+    );
   });
 
   it('classifies snow by snowfall, never by temperature, ahead of rain', () => {

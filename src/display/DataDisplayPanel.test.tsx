@@ -5,7 +5,6 @@ import type { WeatherTimeline } from '../contracts';
 import { DataDisplayPanel } from './DataDisplayPanel';
 
 const baseTimeline: WeatherTimeline = {
-  localTimeIso: '2026-09-13T08:00',
   samples: [
     {
       epochMs: new Date(2026, 8, 13, 8, 0).getTime(),
@@ -48,18 +47,23 @@ describe('DataDisplayPanel', () => {
     expect(screen.getByText('40–70%')).toBeInTheDocument();
   });
 
-  it('displays localTimeIso verbatim, independent of epochMs or the runtime timezone', () => {
+  it("renders the local time in the timeline's own time zone, not the runtime's", () => {
     render(
       <DataDisplayPanel
         timeline={{
           ...baseTimeline,
-          localTimeIso: '2026-09-13T23:30',
-          samples: [{ ...baseTimeline.samples[0], epochMs: 0 }],
+          timeZone: 'America/Los_Angeles',
+          samples: [
+            {
+              ...baseTimeline.samples[0],
+              epochMs: Date.parse('2026-01-15T20:00:00Z'), // no-DST date
+            },
+          ],
         }}
         unit="celsius"
       />,
     );
-    expect(screen.getByText('11:30 PM')).toBeInTheDocument();
+    expect(screen.getByText('12:00 PM')).toBeInTheDocument();
   });
 
   it('has no detectable accessibility violations', async () => {

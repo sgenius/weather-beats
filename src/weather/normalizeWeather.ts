@@ -21,15 +21,28 @@ function classifyPrecipitationType(
   return 'none';
 }
 
+/**
+ * Open-Meteo's timezone=auto times (e.g. "2026-09-21T14:00") are the
+ * location's wall-clock time with no UTC offset of their own - Date.parse
+ * would silently (mis)interpret them as the *browser's* zone. Reinterpreting
+ * the string as UTC, then undoing utcOffsetSeconds, recovers the real
+ * instant regardless of where the browser is.
+ */
+function toRealEpochMs(
+  naiveLocalIso: string,
+  utcOffsetSeconds: number,
+): number {
+  return Date.parse(`${naiveLocalIso}Z`) - utcOffsetSeconds * 1000;
+}
+
 /** Index of the hourly entry that contains "now" (the last one at or before it). */
 function findCurrentHourIndex(
-  hourlyTimes: string[],
-  currentTimeIso: string,
+  hourlyEpochs: number[],
+  currentEpochMs: number,
 ): number {
-  const currentEpoch = Date.parse(currentTimeIso);
   let index = 0;
-  for (let i = 0; i < hourlyTimes.length; i += 1) {
-    if (Date.parse(hourlyTimes[i]) <= currentEpoch) index = i;
+  for (let i = 0; i < hourlyEpochs.length; i += 1) {
+    if (hourlyEpochs[i] <= currentEpochMs) index = i;
     else break;
   }
   return index;
@@ -38,11 +51,21 @@ function findCurrentHourIndex(
 export function normalizeOpenMeteoResponse(
   response: OpenMeteoResponse,
 ): WeatherTimeline {
-  const { hourly, daily, current } = response;
-  const startIndex = findCurrentHourIndex(hourly.time, current.time);
+  const {
+    hourly,
+    daily,
+    current,
+    utc_offset_seconds: utcOffsetSeconds,
+  } = response;
+  const hourlyEpochs = hourly.time.map((time) =>
+    toRealEpochMs(time, utcOffsetSeconds),
+  );
+  const currentEpochMs = toRealEpochMs(current.time, utcOffsetSeconds);
+
+  const startIndex = findCurrentHourIndex(hourlyEpochs, currentEpochMs);
   const endIndex = startIndex + FORECAST_HOURS + 1;
 
-  const samples = hourly.time.slice(startIndex, endIndex).map((time, i) => {
+  const samples = hourlyEpochs.slice(startIndex, endIndex).map((epochMs, i) => {
     const index = startIndex + i;
     const precipitation: Precipitation = {
       amountMm: hourly.precipitation[index] ?? 0,
@@ -52,11 +75,7 @@ export function normalizeOpenMeteoResponse(
       ),
     };
     return {
-      // Naively parsed (no UTC offset in Open-Meteo's timezone=auto
-      // strings): correctly 1-hour spaced for ordering, which is all
-      // downstream code needs - see time/naiveLocalIso.ts for why display
-      // uses localTimeIso directly instead.
-      epochMs: Date.parse(time),
+      epochMs,
       temperatureC: hourly.temperature_2m[index],
       humidityPercent: hourly.relative_humidity_2m[index],
       cloudCoverPercent: hourly.cloud_cover[index],
@@ -64,6 +83,8 @@ export function normalizeOpenMeteoResponse(
     };
   });
 
+  // Grouping by the location's own calendar day only needs the wall-clock
+  // string, not a real instant, so this stays a plain text comparison.
   const today = current.time.slice(0, 10);
   const todayHumidities = hourly.time
     .map((time, index) => ({
@@ -74,7 +95,7 @@ export function normalizeOpenMeteoResponse(
     .map(({ humidity }) => humidity);
 
   return {
-    localTimeIso: current.time,
+    timeZone: response.timezone,
     samples,
     todayTemperatureRangeC:
       daily.temperature_2m_min[0] !== undefined
