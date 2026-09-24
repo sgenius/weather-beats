@@ -3,10 +3,30 @@ import { axe } from 'jest-axe';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import App from './App';
 import * as geocoding from './location/geocoding';
+import * as openMeteo from './weather/openMeteo';
+import { clearWeatherCache } from './weather/weatherCache';
+
+const fakeForecast: openMeteo.OpenMeteoResponse = {
+  timezone: 'UTC',
+  timezone_abbreviation: 'UTC',
+  utc_offset_seconds: 0,
+  current: { time: '2026-09-24T09:00' },
+  hourly: {
+    time: ['2026-09-24T09:00'],
+    temperature_2m: [3],
+    relative_humidity_2m: [61],
+    cloud_cover: [45],
+    precipitation: [0],
+    snowfall: [0],
+  },
+  daily: { temperature_2m_max: [5], temperature_2m_min: [1] },
+};
 
 describe('App', () => {
   beforeEach(() => {
     localStorage.clear();
+    clearWeatherCache();
+    vi.spyOn(openMeteo, 'fetchForecast').mockResolvedValue(fakeForecast);
   });
 
   it('renders the app heading', () => {
@@ -74,6 +94,27 @@ describe('App', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Search' }));
 
     expect(await screen.findByText(/Paris, France/)).toBeInTheDocument();
+  });
+
+  it('shows live weather for the active location once it loads', async () => {
+    render(<App />);
+    expect(screen.getByText('Loading weather…')).toBeInTheDocument();
+
+    expect(
+      await screen.findByRole('heading', { name: 'Live weather' }),
+    ).toBeInTheDocument();
+    expect(screen.getByText('37°F')).toBeInTheDocument(); // 3°C -> 37.4°F
+  });
+
+  it('shows an error message when the live weather request fails', async () => {
+    vi.spyOn(openMeteo, 'fetchForecast').mockRejectedValue(
+      new Error('Weather request failed: 500'),
+    );
+    render(<App />);
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Weather request failed: 500',
+    );
   });
 
   it('has no detectable accessibility violations', async () => {

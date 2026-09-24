@@ -66,6 +66,24 @@ describe('DataDisplayPanel', () => {
     expect(screen.getByText('12:00 PM')).toBeInTheDocument();
   });
 
+  it('uses a custom heading when given, defaulting to "Current weather"', () => {
+    render(<DataDisplayPanel timeline={baseTimeline} unit="celsius" />);
+    expect(
+      screen.getByRole('heading', { name: 'Current weather' }),
+    ).toBeInTheDocument();
+
+    render(
+      <DataDisplayPanel
+        timeline={baseTimeline}
+        unit="celsius"
+        heading="Live weather"
+      />,
+    );
+    expect(
+      screen.getByRole('heading', { name: 'Live weather' }),
+    ).toBeInTheDocument();
+  });
+
   it('has no detectable accessibility violations', async () => {
     const { container } = render(
       <DataDisplayPanel timeline={baseTimeline} unit="fahrenheit" />,
