@@ -12,19 +12,25 @@ import {
 interface DataDisplayPanelProps {
   timeline: WeatherTimeline;
   unit: TemperatureUnit;
+  heading?: string;
 }
 
 /**
  * Renders the required current-conditions values (PLAN.md §1/§7) for the
  * first ("now") sample of a WeatherTimeline. Source-agnostic: it doesn't
- * know or care whether the timeline came from the sandbox or live weather.
+ * know or care whether the timeline came from the sandbox or live weather -
+ * `heading` distinguishes multiple instances on the same page.
  */
-export function DataDisplayPanel({ timeline, unit }: DataDisplayPanelProps) {
+export function DataDisplayPanel({
+  timeline,
+  unit,
+  heading = 'Current weather',
+}: DataDisplayPanelProps) {
   const [current] = timeline.samples;
 
   return (
-    <section aria-label="Current weather">
-      <h2>Current weather</h2>
+    <section aria-label={heading}>
+      <h2>{heading}</h2>
       <dl>
         <dt>Local time</dt>
         <dd>{formatLocalTime(current.epochMs, timeline.timeZone)}</dd>
