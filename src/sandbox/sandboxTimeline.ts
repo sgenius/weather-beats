@@ -29,7 +29,9 @@ export const DEFAULT_SANDBOX_VALUES: SandboxNowValues = {
  * Builds the single-sample WeatherTimeline the sandbox form describes.
  * epochMs uses the browser's "today" at the chosen time of day - a
  * stand-in for the active location's local time until the location
- * service (Stage 1 step 3) supplies a real one.
+ * service (Stage 1 step 3) supplies a real one. No timeZone is set, so it
+ * displays in the browser's own zone - exactly the sandbox's intent, since
+ * it has no location of its own.
  */
 export function sandboxValuesToTimeline(
   values: SandboxNowValues,
@@ -51,7 +53,6 @@ export function sandboxValuesToTimeline(
   };
 
   return {
-    localTimeIso: sample.toISOString(),
     samples: [
       {
         epochMs: sample.getTime(),

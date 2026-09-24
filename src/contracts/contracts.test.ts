@@ -10,7 +10,7 @@ describe('core contracts', () => {
   it('accepts a single-sample WeatherTimeline as the no-forecast fallback', () => {
     const now = Date.parse('2026-09-13T08:00:00-07:00');
     const timeline: WeatherTimeline = {
-      localTimeIso: '2026-09-13T08:00:00-07:00',
+      timeZone: 'America/Los_Angeles',
       samples: [
         {
           epochMs: now,

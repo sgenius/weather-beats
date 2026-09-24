@@ -27,11 +27,15 @@ export interface WeatherRange {
 }
 
 export interface WeatherTimeline {
-  /** Local time at the active location, for the first ("now") sample -
-   * display only, never the source of truth for time math or ordering:
-   * use each sample's epochMs for that (samples[0].epochMs *is* "now" -
-   * no separate top-level epoch field, so there's one source of truth). */
-  localTimeIso: string;
+  /**
+   * IANA time zone name (e.g. "America/Los_Angeles") for the active
+   * location, for display purposes only: pass it as `Intl`/`Date`'s
+   * `timeZone` option to render any sample's epochMs as that location's
+   * wall-clock time, regardless of the browser's own zone. Undefined means
+   * "the browser's own local zone" - the sandbox's intent, since it has no
+   * location of its own.
+   */
+  timeZone?: string;
   /**
    * epochMs-ascending samples, starting with "now" as samples[0]. Up to 13
    * samples (now + next 12h) when an hourly forecast is available; a

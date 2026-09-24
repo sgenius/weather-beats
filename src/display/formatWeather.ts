@@ -6,10 +6,17 @@ import {
   type TemperatureUnit,
 } from '../units/temperatureUnit';
 
-export function formatLocalTime(epochMs: number): string {
+/**
+ * Formats an epochMs as wall-clock time in `timeZone` (WeatherTimeline's
+ * IANA time zone name) - correct regardless of the browser's own zone.
+ * `timeZone` undefined defaults to the browser's own zone, which is what
+ * the sandbox (no location of its own) wants.
+ */
+export function formatLocalTime(epochMs: number, timeZone?: string): string {
   return new Date(epochMs).toLocaleTimeString(undefined, {
     hour: 'numeric',
     minute: '2-digit',
+    timeZone,
   });
 }
 
