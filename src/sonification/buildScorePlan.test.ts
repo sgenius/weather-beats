@@ -71,14 +71,9 @@ describe('buildScorePlan - "now" mode', () => {
     expect(day.bpm).toBeGreaterThan(night.bpm);
   });
 
-  it('is silent on percussion with no precipitation, and denser/louder with more', () => {
+  it('keeps a steady percussion pulse regardless of precipitation, scaling only its loudness', () => {
     const dry = buildScorePlan(
       timeline([sample({ precipitation: { amountMm: 0, type: 'none' } })]),
-      DEFAULT_MAPPING,
-      'now',
-    );
-    const light = buildScorePlan(
-      timeline([sample({ precipitation: { amountMm: 2, type: 'rain' } })]),
       DEFAULT_MAPPING,
       'now',
     );
@@ -88,12 +83,29 @@ describe('buildScorePlan - "now" mode', () => {
       'now',
     );
 
-    expect(track(dry, 'percussion').notes).toHaveLength(0);
-    const lightNotes = track(light, 'percussion').notes;
+    const dryNotes = track(dry, 'percussion').notes;
     const heavyNotes = track(heavy, 'percussion').notes;
-    expect(lightNotes.length).toBeGreaterThan(0);
-    expect(heavyNotes.length).toBeGreaterThan(lightNotes.length);
-    expect(heavyNotes[0].velocity).toBeGreaterThan(lightNotes[0].velocity);
+    // Never silent - a dry stretch must not risk silencing the whole piece
+    // if a later renderer ever treats "volume" as a master gain.
+    expect(dryNotes.length).toBeGreaterThan(0);
+    expect(dryNotes.length).toBe(heavyNotes.length); // same bpm, same pulse
+    expect(heavyNotes[0].velocity).toBeGreaterThan(dryNotes[0].velocity);
+  });
+
+  it('locks the percussion pulse count to the shared tempo', () => {
+    const day = buildScorePlan(
+      timeline([sample({ epochMs: Date.parse('2026-09-24T12:00:00Z') })]),
+      DEFAULT_MAPPING,
+      'now',
+    );
+    const night = buildScorePlan(
+      timeline([sample({ epochMs: Date.parse('2026-09-24T00:00:00Z') })]),
+      DEFAULT_MAPPING,
+      'now',
+    );
+    expect(track(day, 'percussion').notes.length).toBeGreaterThan(
+      track(night, 'percussion').notes.length,
+    );
   });
 
   it('maps cloud cover and humidity to in-range [0,1] automation on the mapped tracks', () => {

@@ -22,7 +22,9 @@ import { lerp, normalize } from './mathHelpers';
 const TEMPERATURE_DOMAIN_C: [number, number] = [-10, 40];
 const PRECIPITATION_DOMAIN_MM: [number, number] = [0, 10];
 const BPM_RANGE: [number, number] = [80, 112];
+const PERCUSSION_VELOCITY_RANGE: [number, number] = [0.2, 0.9];
 const PERCUSSION_NOTE = 60;
+const NOW_DURATION_SECONDS = 6;
 
 const PITCH_RANGES: Partial<Record<TrackId, [number, number]>> = {
   foreground: [60, 84],
@@ -49,9 +51,15 @@ function chordFor(root: number, isMajor: boolean): number[] {
   return [root, root + (isMajor ? 4 : 3), root + 7];
 }
 
-function percussionHits(count: number, velocity: number): NoteEvent[] {
-  if (count <= 0) return [];
-  const spacing = 6 / count;
+/** An even pulse across `durationSeconds` - never empty, so percussion (and
+ * the shared tempo it carries) is always present; only its `velocity`
+ * (driven by precipitation) varies. */
+function percussionPulse(
+  durationSeconds: number,
+  count: number,
+  velocity: number,
+): NoteEvent[] {
+  const spacing = durationSeconds / count;
   return Array.from({ length: count }, (_, i) => ({
     startSeconds: i * spacing,
     durationSeconds: Math.min(0.15, spacing),
@@ -88,6 +96,7 @@ function applyLevers(
   const humidityValue = sample.humidityPercent / 100;
   const localHour = getLocalHour(sample.epochMs, timeZone);
   const isMajor = dayness(localHour) >= 0.5;
+  const bpm = Math.round(lerp(...BPM_RANGE, dayness(localHour)));
 
   for (const trackId of tracksFor(mapping, 'temperature', 'pitch')) {
     const track = tracks.get(trackId);
@@ -97,7 +106,7 @@ function applyLevers(
       trackId === 'background' ? chordFor(root, isMajor) : [root];
     track.notes.push({
       startSeconds: 0,
-      durationSeconds: 6,
+      durationSeconds: NOW_DURATION_SECONDS,
       midiNotes,
       velocity: 0.7,
     });
@@ -110,19 +119,20 @@ function applyLevers(
     const track = tracks.get(trackId);
     if (track) addAutomationPoint(track, 'reverbWetness', humidityValue);
   }
-  for (const trackId of tracksFor(
-    mapping,
-    'precipitation',
-    'rhythmicDensity',
-  )) {
+  // A steady pulse locked to the shared bpm (PLAN.md §4.4): one hit per
+  // beat, so percussion - and the tempo it carries - is never silent.
+  // Precipitation scales only how loud that pulse is.
+  const beatCount = Math.max(1, Math.round((bpm / 60) * NOW_DURATION_SECONDS));
+  for (const trackId of tracksFor(mapping, 'precipitation', 'volume')) {
     const track = tracks.get(trackId);
     if (!track) continue;
-    const count = Math.round(lerp(0, 8, precipValue));
-    const velocity = lerp(0.3, 0.9, precipValue);
-    track.notes.push(...percussionHits(count, velocity));
+    const velocity = lerp(...PERCUSSION_VELOCITY_RANGE, precipValue);
+    track.notes.push(
+      ...percussionPulse(NOW_DURATION_SECONDS, beatCount, velocity),
+    );
   }
 
-  return Math.round(lerp(...BPM_RANGE, dayness(localHour)));
+  return bpm;
 }
 
 export function buildScorePlan(
@@ -144,7 +154,7 @@ export function buildScorePlan(
 
   return {
     mode,
-    durationSeconds: 6,
+    durationSeconds: NOW_DURATION_SECONDS,
     fadeOutSeconds: 1,
     bpm,
     tracks: [...tracks.values()],
