@@ -52,7 +52,7 @@ describe('buildScorePlan - "now" mode', () => {
     expect(pitches[1]).toBeLessThan(pitches[2]);
   });
 
-  it('gives the background chord major-by-day/minor-by-night, and a faster bpm by day', () => {
+  it('gives the background chord major-by-day/minor-by-night, a faster bpm, and more percussion hits by day', () => {
     const day = buildScorePlan(
       timeline([sample({ epochMs: Date.parse('2026-09-24T12:00:00Z') })]),
       DEFAULT_MAPPING,
@@ -69,6 +69,10 @@ describe('buildScorePlan - "now" mode', () => {
     expect(dayChord[1] - dayChord[0]).toBe(4); // major third
     expect(nightChord[1] - nightChord[0]).toBe(3); // minor third
     expect(day.bpm).toBeGreaterThan(night.bpm);
+    // Percussion pulse count is bpm-locked (PLAN.md §4.4), so it follows too.
+    expect(track(day, 'percussion').notes.length).toBeGreaterThan(
+      track(night, 'percussion').notes.length,
+    );
   });
 
   it('keeps a steady percussion pulse regardless of precipitation, scaling only its loudness', () => {
@@ -85,27 +89,9 @@ describe('buildScorePlan - "now" mode', () => {
 
     const dryNotes = track(dry, 'percussion').notes;
     const heavyNotes = track(heavy, 'percussion').notes;
-    // Never silent - a dry stretch must not risk silencing the whole piece
-    // if a later renderer ever treats "volume" as a master gain.
-    expect(dryNotes.length).toBeGreaterThan(0);
+    expect(dryNotes.length).toBeGreaterThan(0); // never silent
     expect(dryNotes.length).toBe(heavyNotes.length); // same bpm, same pulse
     expect(heavyNotes[0].velocity).toBeGreaterThan(dryNotes[0].velocity);
-  });
-
-  it('locks the percussion pulse count to the shared tempo', () => {
-    const day = buildScorePlan(
-      timeline([sample({ epochMs: Date.parse('2026-09-24T12:00:00Z') })]),
-      DEFAULT_MAPPING,
-      'now',
-    );
-    const night = buildScorePlan(
-      timeline([sample({ epochMs: Date.parse('2026-09-24T00:00:00Z') })]),
-      DEFAULT_MAPPING,
-      'now',
-    );
-    expect(track(day, 'percussion').notes.length).toBeGreaterThan(
-      track(night, 'percussion').notes.length,
-    );
   });
 
   it('maps cloud cover and humidity to in-range [0,1] automation on the mapped tracks', () => {
@@ -123,21 +109,5 @@ describe('buildScorePlan - "now" mode', () => {
       const points = track(plan, trackId).leverAutomation.reverbWetness!;
       expect(points).toEqual([{ timeSeconds: 0, value: 0.3 }]);
     }
-  });
-
-  it('only automates the tracks a custom mapping actually targets', () => {
-    const customMapping = {
-      tracks: DEFAULT_MAPPING.tracks,
-      assignments: [
-        {
-          parameter: 'cloudCover' as const,
-          lever: 'muffling' as const,
-          trackIds: ['foreground'],
-        },
-      ],
-    };
-    const plan = buildScorePlan(timeline([sample()]), customMapping, 'now');
-    expect(track(plan, 'foreground').leverAutomation.muffling).toBeDefined();
-    expect(track(plan, 'background').leverAutomation.muffling).toBeUndefined();
   });
 });

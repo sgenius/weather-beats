@@ -1,9 +1,7 @@
 // WeatherTimeline + MappingConfig -> ScorePlan (PLAN.md §3/§4): deterministic
-// and Tone.js-free, so the mapping logic is unit-testable without audio
-// hardware. Realises the default 1:1 mapping (§4.5); MappingConfig only
-// decides *which tracks* each lever reaches - the per-lever math itself is
-// fixed for Stage 1 (Stage 4 generalises further). "Now" mode only for now;
-// "next12h" is a follow-up PR.
+// and Tone.js-free. Realises the default 1:1 mapping (§4.5) - MappingConfig
+// only decides which tracks each lever reaches, fixed for Stage 1. "Now"
+// mode only; "next12h" is a follow-up PR.
 import {
   DEFAULT_TRACK_IDS,
   type MappingConfig,
@@ -51,9 +49,8 @@ function chordFor(root: number, isMajor: boolean): number[] {
   return [root, root + (isMajor ? 4 : 3), root + 7];
 }
 
-/** An even pulse across `durationSeconds` - never empty, so percussion (and
- * the shared tempo it carries) is always present; only its `velocity`
- * (driven by precipitation) varies. */
+/** An even pulse across `durationSeconds`, never empty - percussion (and
+ * the shared tempo) is always present; only `velocity` varies. */
 function percussionPulse(
   durationSeconds: number,
   count: number,
@@ -119,9 +116,8 @@ function applyLevers(
     const track = tracks.get(trackId);
     if (track) addAutomationPoint(track, 'reverbWetness', humidityValue);
   }
-  // A steady pulse locked to the shared bpm (PLAN.md §4.4): one hit per
-  // beat, so percussion - and the tempo it carries - is never silent.
-  // Precipitation scales only how loud that pulse is.
+  // Steady, bpm-locked pulse (PLAN.md §4.4) - precipitation scales only
+  // its volume, never whether percussion plays at all.
   const beatCount = Math.max(1, Math.round((bpm / 60) * NOW_DURATION_SECONDS));
   for (const trackId of tracksFor(mapping, 'precipitation', 'volume')) {
     const track = tracks.get(trackId);
