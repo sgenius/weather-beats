@@ -1,11 +1,13 @@
 // WeatherTimeline + MappingConfig -> ScorePlan (PLAN.md §3/§4): deterministic
 // and Tone.js-free. Realises the default 1:1 mapping (§4.5) - MappingConfig
 // only decides which tracks each lever reaches, fixed for Stage 1. "Now"
-// mode only; "next12h" is a follow-up PR.
+// plays only samples[0] as one long note; "next12h" plays every sample as
+// its own note/automation point at second == hour offset (§4.1).
 import {
   DEFAULT_TRACK_IDS,
   type MappingConfig,
   type NoteEvent,
+  type PlaybackMode,
   type ScorePlan,
   type SoundLever,
   type TrackId,
@@ -23,6 +25,8 @@ const BPM_RANGE: [number, number] = [80, 112];
 const PERCUSSION_VELOCITY_RANGE: [number, number] = [0.2, 0.9];
 const PERCUSSION_NOTE = 60;
 const NOW_DURATION_SECONDS = 6;
+const NEXT12H_DURATION_SECONDS = 12;
+const NEXT12H_NOTE_SECONDS = 1;
 
 const PITCH_RANGES: Partial<Record<TrackId, [number, number]>> = {
   foreground: [60, 84],
@@ -49,20 +53,24 @@ function chordFor(root: number, isMajor: boolean): number[] {
   return [root, root + (isMajor ? 4 : 3), root + 7];
 }
 
-/** An even pulse across `durationSeconds`, never empty - percussion (and
- * the shared tempo) is always present; only `velocity` varies. */
+/** An even, bpm-locked pulse across `durationSeconds`, never empty -
+ * percussion (and the shared tempo) is always present; only each beat's
+ * `velocityAt` its own start time varies. */
 function percussionPulse(
   durationSeconds: number,
   count: number,
-  velocity: number,
+  velocityAt: (startSeconds: number) => number,
 ): NoteEvent[] {
   const spacing = durationSeconds / count;
-  return Array.from({ length: count }, (_, i) => ({
-    startSeconds: i * spacing,
-    durationSeconds: Math.min(0.15, spacing),
-    midiNotes: [PERCUSSION_NOTE],
-    velocity,
-  }));
+  return Array.from({ length: count }, (_, i) => {
+    const startSeconds = i * spacing;
+    return {
+      startSeconds,
+      durationSeconds: Math.min(0.15, spacing),
+      midiNotes: [PERCUSSION_NOTE],
+      velocity: velocityAt(startSeconds),
+    };
+  });
 }
 
 function emptyTrack(trackId: TrackId): TrackScore {
@@ -73,29 +81,38 @@ function addAutomationPoint(
   track: TrackScore,
   lever: SoundLever,
   value: number,
+  timeSeconds: number,
 ) {
-  (track.leverAutomation[lever] ??= []).push({ timeSeconds: 0, value });
+  (track.leverAutomation[lever] ??= []).push({ timeSeconds, value });
 }
 
-/** Applies one WeatherSample to every mapped track/lever and returns the bpm. */
-function applyLevers(
+/** bpm is one global value per plan (PLAN.md §4.4), so "next12h" uses the
+ * average dayness across its whole window; "now" has only one sample, so
+ * averaging it is a no-op. */
+function averageDayness(
+  samples: WeatherSample[],
+  timeZone: string | undefined,
+): number {
+  const total = samples.reduce(
+    (sum, sample) => sum + dayness(getLocalHour(sample.epochMs, timeZone)),
+    0,
+  );
+  return total / samples.length;
+}
+
+/** Applies one sample's temperature/cloud/humidity levers at `startSeconds`. */
+function applySampleLevers(
   tracks: Map<TrackId, TrackScore>,
   mapping: MappingConfig,
   sample: WeatherSample,
   timeZone: string | undefined,
-): number {
+  startSeconds: number,
+  noteDurationSeconds: number,
+): void {
   const tempValue = normalize(sample.temperatureC, ...TEMPERATURE_DOMAIN_C);
-  const precipValue = normalize(
-    sample.precipitation.amountMm,
-    ...PRECIPITATION_DOMAIN_MM,
-  );
   const cloudValue = sample.cloudCoverPercent / 100;
   const humidityValue = sample.humidityPercent / 100;
-  const localHour = getLocalHour(sample.epochMs, timeZone);
-  const isMajor = dayness(localHour) >= 0.5;
-  // Day feels more active than night, so bpm scales with dayness too
-  // (PLAN.md §4.4); Math.round just converts the lerp to a whole bpm.
-  const bpm = Math.round(lerp(...BPM_RANGE, dayness(localHour)));
+  const isMajor = dayness(getLocalHour(sample.epochMs, timeZone)) >= 0.5;
 
   for (const trackId of tracksFor(mapping, 'temperature', 'pitch')) {
     const track = tracks.get(trackId);
@@ -104,57 +121,96 @@ function applyLevers(
     const midiNotes =
       trackId === 'background' ? chordFor(root, isMajor) : [root];
     track.notes.push({
-      startSeconds: 0,
-      durationSeconds: NOW_DURATION_SECONDS,
+      startSeconds,
+      durationSeconds: noteDurationSeconds,
       midiNotes,
       velocity: 0.7,
     });
   }
   for (const trackId of tracksFor(mapping, 'cloudCover', 'muffling')) {
     const track = tracks.get(trackId);
-    if (track) addAutomationPoint(track, 'muffling', cloudValue);
+    if (track) addAutomationPoint(track, 'muffling', cloudValue, startSeconds);
   }
   for (const trackId of tracksFor(mapping, 'humidity', 'reverbWetness')) {
     const track = tracks.get(trackId);
-    if (track) addAutomationPoint(track, 'reverbWetness', humidityValue);
+    if (track)
+      addAutomationPoint(track, 'reverbWetness', humidityValue, startSeconds);
   }
-  // Steady, bpm-locked pulse (PLAN.md §4.4) - precipitation scales only
-  // its volume, never whether percussion plays at all.
-  const beatCount = Math.max(1, Math.round((bpm / 60) * NOW_DURATION_SECONDS));
+}
+
+/** Steady, bpm-locked pulse (PLAN.md §4.4) across the whole plan - each
+ * beat's volume reflects the sample covering the second it falls in;
+ * precipitation never silences the pulse itself. */
+function applyPercussion(
+  tracks: Map<TrackId, TrackScore>,
+  mapping: MappingConfig,
+  samples: WeatherSample[],
+  bpm: number,
+  durationSeconds: number,
+): void {
+  const beatCount = Math.max(1, Math.round((bpm / 60) * durationSeconds));
+  const notes = percussionPulse(durationSeconds, beatCount, (startSeconds) => {
+    const sampleIndex = Math.min(Math.floor(startSeconds), samples.length - 1);
+    const precipValue = normalize(
+      samples[sampleIndex].precipitation.amountMm,
+      ...PRECIPITATION_DOMAIN_MM,
+    );
+    return lerp(...PERCUSSION_VELOCITY_RANGE, precipValue);
+  });
   for (const trackId of tracksFor(mapping, 'precipitation', 'volume')) {
     const track = tracks.get(trackId);
-    if (!track) continue;
-    const velocity = lerp(...PERCUSSION_VELOCITY_RANGE, precipValue);
-    track.notes.push(
-      ...percussionPulse(NOW_DURATION_SECONDS, beatCount, velocity),
-    );
+    if (track) track.notes.push(...notes);
   }
-
-  return bpm;
 }
 
 export function buildScorePlan(
   timeline: WeatherTimeline,
   mapping: MappingConfig,
-  mode: 'now',
+  mode: PlaybackMode,
 ): ScorePlan {
   const trackIds =
     mapping.tracks.length > 0 ? mapping.tracks : [...DEFAULT_TRACK_IDS];
   const tracks = new Map<TrackId, TrackScore>(
     trackIds.map((id) => [id, emptyTrack(id)]),
   );
-  const bpm = applyLevers(
-    tracks,
-    mapping,
-    timeline.samples[0],
-    timeline.timeZone,
+
+  const samples =
+    mode === 'now' ? timeline.samples.slice(0, 1) : timeline.samples;
+  const durationSeconds =
+    mode === 'now' ? NOW_DURATION_SECONDS : NEXT12H_DURATION_SECONDS;
+  const bpm = Math.round(
+    lerp(...BPM_RANGE, averageDayness(samples, timeline.timeZone)),
   );
 
-  return {
-    mode,
-    durationSeconds: NOW_DURATION_SECONDS,
-    fadeOutSeconds: 1,
-    bpm,
-    tracks: [...tracks.values()],
-  };
+  samples.forEach((sample, i) => {
+    const startSeconds = mode === 'now' ? 0 : i;
+    const noteDurationSeconds =
+      mode === 'now' ? durationSeconds : NEXT12H_NOTE_SECONDS;
+    applySampleLevers(
+      tracks,
+      mapping,
+      sample,
+      timeline.timeZone,
+      startSeconds,
+      noteDurationSeconds,
+    );
+  });
+  applyPercussion(tracks, mapping, samples, bpm, durationSeconds);
+
+  const trackScores = [...tracks.values()];
+  return mode === 'now'
+    ? {
+        mode,
+        durationSeconds: NOW_DURATION_SECONDS,
+        fadeOutSeconds: 1,
+        bpm,
+        tracks: trackScores,
+      }
+    : {
+        mode,
+        durationSeconds: NEXT12H_DURATION_SECONDS,
+        fadeOutSeconds: 1,
+        bpm,
+        tracks: trackScores,
+      };
 }

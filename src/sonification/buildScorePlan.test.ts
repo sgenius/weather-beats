@@ -18,6 +18,18 @@ function timeline(samples: WeatherSample[]): WeatherTimeline {
   return { timeZone: 'UTC', samples };
 }
 
+function hourlySamples(
+  count: number,
+  overridesAt: (i: number) => Partial<WeatherSample>,
+): WeatherSample[] {
+  return Array.from({ length: count }, (_, i) =>
+    sample({
+      epochMs: Date.parse('2026-09-24T12:00:00Z') + i * 3_600_000,
+      ...overridesAt(i),
+    }),
+  );
+}
+
 function track(plan: ReturnType<typeof buildScorePlan>, trackId: string) {
   const found = plan.tracks.find((t) => t.trackId === trackId);
   if (!found) throw new Error(`No track "${trackId}" in plan`);
@@ -109,5 +121,54 @@ describe('buildScorePlan - "now" mode', () => {
       const points = track(plan, trackId).leverAutomation.reverbWetness!;
       expect(points).toEqual([{ timeSeconds: 0, value: 0.3 }]);
     }
+  });
+});
+
+describe('buildScorePlan - "next12h" mode', () => {
+  it('produces a 12s plan with one note per hour, at second == hour offset', () => {
+    const samples = hourlySamples(13, (i) => ({ temperatureC: 10 + i }));
+    const plan = buildScorePlan(timeline(samples), DEFAULT_MAPPING, 'next12h');
+    expect(plan.mode).toBe('next12h');
+    expect(plan.durationSeconds).toBe(12);
+    expect(plan.fadeOutSeconds).toBe(1);
+
+    const notes = track(plan, 'foreground').notes;
+    expect(notes).toHaveLength(13);
+    notes.forEach((note, i) => {
+      expect(note.startSeconds).toBe(i);
+      expect(note.durationSeconds).toBe(1);
+    });
+  });
+
+  it('keeps pitch trending with a strictly rising temperature', () => {
+    const samples = hourlySamples(13, (i) => ({ temperatureC: -10 + i * 5 }));
+    const plan = buildScorePlan(timeline(samples), DEFAULT_MAPPING, 'next12h');
+    const pitches = track(plan, 'foreground').notes.map((n) => n.midiNotes[0]);
+    for (let i = 1; i < pitches.length; i++) {
+      expect(pitches[i]).toBeGreaterThanOrEqual(pitches[i - 1]);
+    }
+    expect(pitches[pitches.length - 1]).toBeGreaterThan(pitches[0]);
+  });
+
+  it('places one cloud-cover automation point per hour at matching times', () => {
+    const samples = hourlySamples(3, (i) => ({ cloudCoverPercent: i * 40 }));
+    const plan = buildScorePlan(timeline(samples), DEFAULT_MAPPING, 'next12h');
+    expect(track(plan, 'foreground').leverAutomation.muffling).toEqual([
+      { timeSeconds: 0, value: 0 },
+      { timeSeconds: 1, value: 0.4 },
+      { timeSeconds: 2, value: 0.8 },
+    ]);
+  });
+
+  it('keeps the percussion pulse bpm-locked across all 12s, louder once rain starts', () => {
+    const samples = hourlySamples(13, (i) => ({
+      precipitation: { amountMm: i < 6 ? 0 : 9, type: i < 6 ? 'none' : 'rain' },
+    }));
+    const plan = buildScorePlan(timeline(samples), DEFAULT_MAPPING, 'next12h');
+    const notes = track(plan, 'percussion').notes;
+    const early = notes.find((n) => n.startSeconds < 6)!;
+    const late = notes.find((n) => n.startSeconds >= 6)!;
+    expect(notes.length).toBeGreaterThan(0);
+    expect(late.velocity).toBeGreaterThan(early.velocity);
   });
 });
