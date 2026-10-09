@@ -17,7 +17,7 @@ import {
 import { dayness, getLocalHour } from './localHour';
 import { lerp, normalize } from './mathHelpers';
 
-const TEMPERATURE_DOMAIN_C: [number, number] = [-10, 40];
+const TEMPERATURE_DOMAIN_C: [number, number] = [-40, 60];
 const PRECIPITATION_DOMAIN_MM: [number, number] = [0, 10];
 const BPM_RANGE: [number, number] = [80, 112];
 const PERCUSSION_VELOCITY_RANGE: [number, number] = [0.2, 0.9];
@@ -93,6 +93,8 @@ function applyLevers(
   const humidityValue = sample.humidityPercent / 100;
   const localHour = getLocalHour(sample.epochMs, timeZone);
   const isMajor = dayness(localHour) >= 0.5;
+  // Day feels more active than night, so bpm scales with dayness too
+  // (PLAN.md §4.4); Math.round just converts the lerp to a whole bpm.
   const bpm = Math.round(lerp(...BPM_RANGE, dayness(localHour)));
 
   for (const trackId of tracksFor(mapping, 'temperature', 'pitch')) {
