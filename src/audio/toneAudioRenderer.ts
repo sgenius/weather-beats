@@ -96,10 +96,10 @@ export class ToneAudioRenderer implements AudioRenderer {
   private volumeGain: Tone.Gain | undefined;
   private readonly chains = new Map<TrackId, TrackChain>();
 
-  private ensureBus(): Tone.Gain {
+  private ensureBus(): { fadeGain: Tone.Gain; volumeGain: Tone.Gain } {
     this.volumeGain ??= new Tone.Gain(1).toDestination();
     this.fadeGain ??= new Tone.Gain(1).connect(this.volumeGain);
-    return this.fadeGain;
+    return { fadeGain: this.fadeGain, volumeGain: this.volumeGain };
   }
 
   private chainFor(
@@ -117,7 +117,7 @@ export class ToneAudioRenderer implements AudioRenderer {
   async play(plan: ScorePlan, onEnded?: () => void): Promise<void> {
     await Tone.start();
     this.stop();
-    const fadeGain = this.ensureBus();
+    const { fadeGain } = this.ensureBus();
     const transport = Tone.getTransport();
 
     // Param automation takes an absolute audio-context time, not a
@@ -148,7 +148,9 @@ export class ToneAudioRenderer implements AudioRenderer {
   }
 
   pause(): void {
-    for (const chain of this.chains.values()) silence(chain);
+    for (const chain of this.chains.values()) {
+      silence(chain);
+    }
     Tone.getTransport().pause();
   }
 
@@ -157,14 +159,16 @@ export class ToneAudioRenderer implements AudioRenderer {
   }
 
   stop(): void {
-    for (const chain of this.chains.values()) silence(chain);
+    for (const chain of this.chains.values()) {
+      silence(chain);
+    }
     const transport = Tone.getTransport();
     transport.stop();
     transport.cancel(0);
   }
 
   setVolume(volume: number): void {
-    this.ensureBus();
-    this.volumeGain!.gain.rampTo(volume, VOLUME_RAMP_SECONDS);
+    const { volumeGain } = this.ensureBus();
+    volumeGain.gain.rampTo(volume, VOLUME_RAMP_SECONDS);
   }
 }
