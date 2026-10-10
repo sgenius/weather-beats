@@ -1,5 +1,11 @@
 import { useMemo, useState } from 'react';
+import type { PlaybackMode } from './contracts';
+import { PlaybackModeToggle } from './audio/PlaybackModeToggle';
 import { ToneAudioRenderer } from './audio/toneAudioRenderer';
+import {
+  TransportControls,
+  type TransportState,
+} from './audio/TransportControls';
 import { DataDisplayPanel } from './display/DataDisplayPanel';
 import { LocationPicker } from './location/LocationPicker';
 import { LocationStatus } from './location/LocationStatus';
@@ -30,24 +36,41 @@ function AppContent() {
   useWeatherStateTheme(classifyWeatherState(sandboxTimeline.samples[0]));
 
   // Lazy: constructing this touches no audio hardware until play() runs,
-  // which requires the user gesture below (PLAN.md §4.6).
+  // which requires a user gesture (PLAN.md §4.6) - never auto-started.
   const renderer = useMemo(() => new ToneAudioRenderer(), []);
-  const [starting, setStarting] = useState(false);
+  const [mode, setMode] = useState<PlaybackMode>('now');
+  const [transportState, setTransportState] =
+    useState<TransportState>('stopped');
+  const [volume, setVolume] = useState(1);
   const activeTimeline =
     liveWeather.status === 'ready' && liveWeather.timeline
       ? liveWeather.timeline
       : sandboxTimeline;
 
-  async function handlePlay() {
-    setStarting(true);
-    try {
-      const plan = buildScorePlan(activeTimeline, DEFAULT_MAPPING, 'now');
-      // Full transport state (pause/stop/onEnded wiring) lands with the
-      // rest of the transport controls in the next PR.
-      await renderer.play(plan);
-    } finally {
-      setStarting(false);
-    }
+  async function handleRestart() {
+    setTransportState('playing');
+    const plan = buildScorePlan(activeTimeline, DEFAULT_MAPPING, mode);
+    await renderer.play(plan, () => setTransportState('stopped'));
+  }
+
+  function handlePause() {
+    renderer.pause();
+    setTransportState('paused');
+  }
+
+  function handleResume() {
+    renderer.resume();
+    setTransportState('playing');
+  }
+
+  function handleStop() {
+    renderer.stop();
+    setTransportState('stopped');
+  }
+
+  function handleVolumeChange(newVolume: number) {
+    setVolume(newVolume);
+    renderer.setVolume(newVolume);
   }
 
   return (
@@ -62,9 +85,16 @@ function AppContent() {
       <LocationPicker onLocate={setSearchedLocation} />
       <UnitToggle unit={unit} onChange={setUnit} />
 
-      <button type="button" onClick={handlePlay} disabled={starting}>
-        {starting ? 'Starting…' : '▶ Play (6s)'}
-      </button>
+      <PlaybackModeToggle mode={mode} onChange={setMode} />
+      <TransportControls
+        state={transportState}
+        onRestart={handleRestart}
+        onPause={handlePause}
+        onResume={handleResume}
+        onStop={handleStop}
+        volume={volume}
+        onVolumeChange={handleVolumeChange}
+      />
 
       {liveWeather.status === 'loading' && <p>Loading weather…</p>}
       {liveWeather.status === 'error' && (
