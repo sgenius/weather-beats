@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
+import { ToneAudioRenderer } from './audio/toneAudioRenderer';
 import { DataDisplayPanel } from './display/DataDisplayPanel';
 import { LocationPicker } from './location/LocationPicker';
 import { LocationStatus } from './location/LocationStatus';
@@ -9,6 +10,8 @@ import {
   sandboxValuesToTimeline,
   type SandboxNowValues,
 } from './sandbox/sandboxTimeline';
+import { buildScorePlan } from './sonification/buildScorePlan';
+import { DEFAULT_MAPPING } from './sonification/defaultMapping';
 import { classifyWeatherState } from './theme/classifyWeatherState';
 import { ThemeProvider } from './theme/ThemeProvider';
 import { useWeatherStateTheme } from './theme/useWeatherStateTheme';
@@ -20,11 +23,30 @@ function AppContent() {
   const [sandboxValues, setSandboxValues] = useState<SandboxNowValues>(
     DEFAULT_SANDBOX_VALUES,
   );
-  const timeline = sandboxValuesToTimeline(sandboxValues);
+  const sandboxTimeline = sandboxValuesToTimeline(sandboxValues);
   const { location, setSearchedLocation } = useActiveLocation();
   const [unit, setUnit] = useTemperatureUnit();
   const liveWeather = useWeatherTimeline(location.coordinates);
-  useWeatherStateTheme(classifyWeatherState(timeline.samples[0]));
+  useWeatherStateTheme(classifyWeatherState(sandboxTimeline.samples[0]));
+
+  // Lazy: constructing this touches no audio hardware until play() runs,
+  // which requires the user gesture below (PLAN.md §4.6).
+  const renderer = useMemo(() => new ToneAudioRenderer(), []);
+  const [starting, setStarting] = useState(false);
+  const activeTimeline =
+    liveWeather.status === 'ready' && liveWeather.timeline
+      ? liveWeather.timeline
+      : sandboxTimeline;
+
+  async function handlePlay() {
+    setStarting(true);
+    try {
+      const plan = buildScorePlan(activeTimeline, DEFAULT_MAPPING, 'now');
+      await renderer.play(plan);
+    } finally {
+      setStarting(false);
+    }
+  }
 
   return (
     <main>
@@ -37,6 +59,10 @@ function AppContent() {
       <LocationStatus location={location} />
       <LocationPicker onLocate={setSearchedLocation} />
       <UnitToggle unit={unit} onChange={setUnit} />
+
+      <button type="button" onClick={handlePlay} disabled={starting}>
+        {starting ? 'Starting…' : '▶ Play (6s)'}
+      </button>
 
       {liveWeather.status === 'loading' && <p>Loading weather…</p>}
       {liveWeather.status === 'error' && (
@@ -51,7 +77,7 @@ function AppContent() {
       )}
 
       <DataDisplayPanel
-        timeline={timeline}
+        timeline={sandboxTimeline}
         unit={unit}
         heading="Sandbox preview"
       />
