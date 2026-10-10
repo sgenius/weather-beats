@@ -21,7 +21,10 @@ import { lerp, normalize } from './mathHelpers';
 
 const TEMPERATURE_DOMAIN_C: [number, number] = [-40, 60];
 const PRECIPITATION_DOMAIN_MM: [number, number] = [0, 10];
-const BPM_RANGE: [number, number] = [80, 112];
+// Day/night is already audible via chord quality (major/minor, below) -
+// a few bpm either way isn't a reliable enough signal on its own, so
+// tempo stays constant instead of also riding on dayness.
+const BPM = 96;
 const PERCUSSION_VELOCITY_RANGE: [number, number] = [0.2, 0.9];
 const PERCUSSION_NOTE = 60;
 const NOW_DURATION_SECONDS = 6;
@@ -84,20 +87,6 @@ function addAutomationPoint(
   timeSeconds: number,
 ) {
   (track.leverAutomation[lever] ??= []).push({ timeSeconds, value });
-}
-
-/** bpm is one global value per plan (PLAN.md §4.4), so "next12h" uses the
- * average dayness across its whole window; "now" has only one sample, so
- * averaging it is a no-op. */
-function averageDayness(
-  samples: WeatherSample[],
-  timeZone: string | undefined,
-): number {
-  const total = samples.reduce(
-    (sum, sample) => sum + dayness(getLocalHour(sample.epochMs, timeZone)),
-    0,
-  );
-  return total / samples.length;
 }
 
 /** Applies one sample's temperature/cloud/humidity levers at `startSeconds`. */
@@ -178,9 +167,6 @@ export function buildScorePlan(
     mode === 'now' ? timeline.samples.slice(0, 1) : timeline.samples;
   const durationSeconds =
     mode === 'now' ? NOW_DURATION_SECONDS : NEXT12H_DURATION_SECONDS;
-  const bpm = Math.round(
-    lerp(...BPM_RANGE, averageDayness(samples, timeline.timeZone)),
-  );
 
   samples.forEach((sample, i) => {
     const startSeconds = mode === 'now' ? 0 : i;
@@ -195,7 +181,7 @@ export function buildScorePlan(
       noteDurationSeconds,
     );
   });
-  applyPercussion(tracks, mapping, samples, bpm, durationSeconds);
+  applyPercussion(tracks, mapping, samples, BPM, durationSeconds);
 
   const trackScores = [...tracks.values()];
   return mode === 'now'
@@ -203,14 +189,14 @@ export function buildScorePlan(
         mode,
         durationSeconds: NOW_DURATION_SECONDS,
         fadeOutSeconds: 1,
-        bpm,
+        bpm: BPM,
         tracks: trackScores,
       }
     : {
         mode,
         durationSeconds: NEXT12H_DURATION_SECONDS,
         fadeOutSeconds: 1,
-        bpm,
+        bpm: BPM,
         tracks: trackScores,
       };
 }

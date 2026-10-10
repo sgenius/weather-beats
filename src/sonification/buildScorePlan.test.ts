@@ -64,7 +64,7 @@ describe('buildScorePlan - "now" mode', () => {
     expect(pitches[1]).toBeLessThan(pitches[2]);
   });
 
-  it('gives the background chord major-by-day/minor-by-night, a faster bpm, and more percussion hits by day', () => {
+  it('gives the background chord major-by-day/minor-by-night, with a constant bpm', () => {
     const day = buildScorePlan(
       timeline([sample({ epochMs: Date.parse('2026-09-24T12:00:00Z') })]),
       DEFAULT_MAPPING,
@@ -80,9 +80,9 @@ describe('buildScorePlan - "now" mode', () => {
     const nightChord = track(night, 'background').notes[0].midiNotes;
     expect(dayChord[1] - dayChord[0]).toBe(4); // major third
     expect(nightChord[1] - nightChord[0]).toBe(3); // minor third
-    expect(day.bpm).toBeGreaterThan(night.bpm);
-    // Percussion pulse count is bpm-locked (PLAN.md §4.4), so it follows too.
-    expect(track(day, 'percussion').notes.length).toBeGreaterThan(
+    // bpm doesn't ride on dayness - the difference isn't audible on its own.
+    expect(day.bpm).toBe(night.bpm);
+    expect(track(day, 'percussion').notes.length).toBe(
       track(night, 'percussion').notes.length,
     );
   });
