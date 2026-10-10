@@ -42,6 +42,8 @@ function AppContent() {
     setStarting(true);
     try {
       const plan = buildScorePlan(activeTimeline, DEFAULT_MAPPING, 'now');
+      // Full transport state (pause/stop/onEnded wiring) lands with the
+      // rest of the transport controls in the next PR.
       await renderer.play(plan);
     } finally {
       setStarting(false);
