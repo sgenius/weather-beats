@@ -28,9 +28,11 @@ class FakeFilter extends FakeNode {
   static instances: FakeFilter[] = [];
   frequency = { setValueAtTime: vi.fn() };
 }
-class FakeFreeverb extends FakeNode {
-  static instances: FakeFreeverb[] = [];
+class FakeReverb extends FakeNode {
+  static instances: FakeReverb[] = [];
+  static nextReady: Promise<void> | null = null;
   wet = { setValueAtTime: vi.fn() };
+  ready = FakeReverb.nextReady ?? Promise.resolve();
 }
 class FakeGain extends FakeNode {
   static instances: FakeGain[] = [];
@@ -60,7 +62,7 @@ vi.mock('tone', () => ({
   Synth: FakeSynth,
   MembraneSynth: FakeSynth,
   Filter: FakeFilter,
-  Freeverb: FakeFreeverb,
+  Reverb: FakeReverb,
   Gain: FakeGain,
   Limiter: FakeLimiter,
 }));
@@ -112,12 +114,13 @@ describe('ToneAudioRenderer', () => {
       FakeSynth,
       FakePolySynth,
       FakeFilter,
-      FakeFreeverb,
+      FakeReverb,
       FakeGain,
       FakeLimiter,
     ]) {
       cls.instances = [];
     }
+    FakeReverb.nextReady = null;
   });
 
   it('starts the context, resets the transport, and schedules a chord on the background (poly) synth', async () => {
@@ -150,7 +153,7 @@ describe('ToneAudioRenderer', () => {
     expect(
       FakeFilter.instances[0].frequency.setValueAtTime,
     ).toHaveBeenCalledWith(expect.any(Number), 12);
-    expect(FakeFreeverb.instances[0].wet.setValueAtTime).toHaveBeenCalledWith(
+    expect(FakeReverb.instances[0].wet.setValueAtTime).toHaveBeenCalledWith(
       0.3,
       12,
     );
@@ -202,6 +205,28 @@ describe('ToneAudioRenderer', () => {
     renderer.setVolume(0.4);
 
     expect(FakeGain.instances[1].gain.rampTo).toHaveBeenCalledWith(0.4, 0.05);
+  });
+
+  it("waits for each chain's reverb to be ready before scheduling/starting playback", async () => {
+    let resolveReady: () => void;
+    FakeReverb.nextReady = new Promise<void>((resolve) => {
+      resolveReady = resolve;
+    });
+
+    const renderer = new ToneAudioRenderer();
+    const playPromise = renderer.play(planWithTrack('foreground'), vi.fn());
+
+    // Flush pending microtasks; the reverb isn't ready yet, so playback
+    // must not have started - this is the exact gap that let the first
+    // play land on a worklet-based reverb before it was connected.
+    await Promise.resolve();
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(fakeTransport.start).not.toHaveBeenCalled();
+
+    resolveReady!();
+    await playPromise;
+    expect(fakeTransport.start).toHaveBeenCalled();
   });
 
   it('reuses the same track nodes across repeated plays', async () => {
