@@ -88,6 +88,7 @@ function AppContent() {
       <PlaybackModeToggle mode={mode} onChange={setMode} />
       <TransportControls
         state={transportState}
+        restartDisabled={liveWeather.status === 'loading'}
         onRestart={handleRestart}
         onPause={handlePause}
         onResume={handleResume}

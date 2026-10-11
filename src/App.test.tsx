@@ -106,6 +106,13 @@ describe('App', () => {
     expect(screen.getByText('37°F')).toBeInTheDocument(); // 3°C -> 37.4°F
   });
 
+  it('disables Play while live weather is loading, so an eager click cannot play stale sandbox data', async () => {
+    render(<App />);
+    expect(screen.getByRole('button', { name: 'Loading…' })).toBeDisabled();
+
+    expect(await screen.findByRole('button', { name: '▶ Play' })).toBeEnabled();
+  });
+
   it('shows an error message when the live weather request fails', async () => {
     vi.spyOn(openMeteo, 'fetchForecast').mockRejectedValue(
       new Error('Weather request failed: 500'),

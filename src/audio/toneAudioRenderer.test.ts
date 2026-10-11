@@ -28,9 +28,11 @@ class FakeFilter extends FakeNode {
   static instances: FakeFilter[] = [];
   frequency = { setValueAtTime: vi.fn() };
 }
-class FakeFreeverb extends FakeNode {
-  static instances: FakeFreeverb[] = [];
+class FakeReverb extends FakeNode {
+  static instances: FakeReverb[] = [];
+  static nextReady: Promise<void> | null = null;
   wet = { setValueAtTime: vi.fn() };
+  ready = FakeReverb.nextReady ?? Promise.resolve();
 }
 class FakeGain extends FakeNode {
   static instances: FakeGain[] = [];
@@ -40,6 +42,7 @@ class FakeGain extends FakeNode {
     rampTo: vi.fn(),
   };
 }
+class FakeLimiter extends FakeNode {}
 class FakeTransport {
   schedule = vi.fn();
   scheduleOnce = vi.fn();
@@ -59,8 +62,9 @@ vi.mock('tone', () => ({
   Synth: FakeSynth,
   MembraneSynth: FakeSynth,
   Filter: FakeFilter,
-  Freeverb: FakeFreeverb,
+  Reverb: FakeReverb,
   Gain: FakeGain,
+  Limiter: FakeLimiter,
 }));
 
 const { ToneAudioRenderer } = await import('./toneAudioRenderer');
@@ -110,11 +114,13 @@ describe('ToneAudioRenderer', () => {
       FakeSynth,
       FakePolySynth,
       FakeFilter,
-      FakeFreeverb,
+      FakeReverb,
       FakeGain,
+      FakeLimiter,
     ]) {
       cls.instances = [];
     }
+    FakeReverb.nextReady = null;
   });
 
   it('starts the context, resets the transport, and schedules a chord on the background (poly) synth', async () => {
@@ -147,12 +153,12 @@ describe('ToneAudioRenderer', () => {
     expect(
       FakeFilter.instances[0].frequency.setValueAtTime,
     ).toHaveBeenCalledWith(expect.any(Number), 12);
-    expect(FakeFreeverb.instances[0].wet.setValueAtTime).toHaveBeenCalledWith(
+    expect(FakeReverb.instances[0].wet.setValueAtTime).toHaveBeenCalledWith(
       0.3,
       12,
     );
 
-    const gain = FakeGain.instances[1]; // [0] is the volume bus, [1] is the fade gain
+    const gain = FakeGain.instances[2]; // [0] headroom, [1] volume bus, [2] fade gain
     fire(0, 100);
     expect(gain.gain.setValueAtTime).toHaveBeenCalledWith(1, 100);
     fire(6, 106);
@@ -198,7 +204,29 @@ describe('ToneAudioRenderer', () => {
     const renderer = new ToneAudioRenderer();
     renderer.setVolume(0.4);
 
-    expect(FakeGain.instances[0].gain.rampTo).toHaveBeenCalledWith(0.4, 0.05);
+    expect(FakeGain.instances[1].gain.rampTo).toHaveBeenCalledWith(0.4, 0.05);
+  });
+
+  it("waits for each chain's reverb to be ready before scheduling/starting playback", async () => {
+    let resolveReady: () => void;
+    FakeReverb.nextReady = new Promise<void>((resolve) => {
+      resolveReady = resolve;
+    });
+
+    const renderer = new ToneAudioRenderer();
+    const playPromise = renderer.play(planWithTrack('foreground'), vi.fn());
+
+    // Flush pending microtasks; the reverb isn't ready yet, so playback
+    // must not have started - this is the exact gap that let the first
+    // play land on a worklet-based reverb before it was connected.
+    await Promise.resolve();
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(fakeTransport.start).not.toHaveBeenCalled();
+
+    resolveReady!();
+    await playPromise;
+    expect(fakeTransport.start).toHaveBeenCalled();
   });
 
   it('reuses the same track nodes across repeated plays', async () => {
@@ -207,6 +235,6 @@ describe('ToneAudioRenderer', () => {
     await renderer.play(planWithTrack('foreground'), vi.fn());
 
     expect(FakeSynth.instances).toHaveLength(1);
-    expect(FakeGain.instances).toHaveLength(2); // fadeGain + volumeGain, both lazy-created once
+    expect(FakeGain.instances).toHaveLength(3); // headroom + volumeGain + fadeGain, all lazy-created once
   });
 });

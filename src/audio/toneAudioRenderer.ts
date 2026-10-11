@@ -25,7 +25,7 @@ type TrackSynth = Tone.PolySynth | Tone.Synth | Tone.MembraneSynth;
 interface TrackChain {
   synth: TrackSynth;
   filter: Tone.Filter;
-  reverb: Tone.Freeverb;
+  reverb: Tone.Reverb;
 }
 
 function synthFor(trackId: TrackId): TrackSynth {
@@ -39,7 +39,14 @@ function buildChain(
   destination: Tone.ToneAudioNode,
 ): TrackChain {
   const filter = new Tone.Filter(MUFFLING_CUTOFF_HZ[0], 'lowpass');
-  const reverb = new Tone.Freeverb({ wet: 0 });
+  // Tone.Reverb (convolution, native ConvolverNode) over Tone.Freeverb
+  // (AudioWorkletNode-based): the worklet only connects its input to its
+  // output once its module finishes loading asynchronously, so any note
+  // scheduled before that lands in a dead end - the first play after a
+  // page load would glitch or drop out while every later one (same
+  // now-ready chain) sounds normal. Reverb's `ready` promise lets play()
+  // wait that out explicitly instead.
+  const reverb = new Tone.Reverb({ wet: 0 });
   const synth = synthFor(trackId);
   synth.chain(filter, reverb, destination);
   return { synth, filter, reverb };
@@ -97,7 +104,16 @@ export class ToneAudioRenderer implements AudioRenderer {
   private readonly chains = new Map<TrackId, TrackChain>();
 
   private ensureBus(): { fadeGain: Tone.Gain; volumeGain: Tone.Gain } {
-    this.volumeGain ??= new Tone.Gain(1).toDestination();
+    if (!this.volumeGain) {
+      // Three simultaneous tracks (one of them a chord) summed at each
+      // note's own velocity clip hard past 0dBFS. A compressor-based
+      // limiter alone can't catch that - its attack reacts to level over
+      // time, not an instantaneous sample peak - so fixed headroom comes
+      // first; the limiter after it is a safety net, not the fix itself.
+      const limiter = new Tone.Limiter(-3).toDestination();
+      const headroom = new Tone.Gain(0.5).connect(limiter);
+      this.volumeGain = new Tone.Gain(1).connect(headroom);
+    }
     this.fadeGain ??= new Tone.Gain(1).connect(this.volumeGain);
     return { fadeGain: this.fadeGain, volumeGain: this.volumeGain };
   }
@@ -134,11 +150,17 @@ export class ToneAudioRenderer implements AudioRenderer {
       plan.durationSeconds,
     );
 
-    for (const track of plan.tracks) {
-      const chain = this.chainFor(track.trackId, fadeGain);
-      scheduleNotes(chain, track);
-      scheduleAutomation(chain, track);
-    }
+    const chains = plan.tracks.map((track) =>
+      this.chainFor(track.trackId, fadeGain),
+    );
+    // Wait out each chain's reverb startup (a no-op once already ready) so
+    // no note is ever scheduled through a reverb that isn't connected yet.
+    await Promise.all(chains.map((chain) => chain.reverb.ready));
+
+    plan.tracks.forEach((track, i) => {
+      scheduleNotes(chains[i], track);
+      scheduleAutomation(chains[i], track);
+    });
 
     transport.scheduleOnce(
       () => onEnded?.(),

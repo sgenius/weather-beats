@@ -2,6 +2,9 @@ export type TransportState = 'stopped' | 'playing' | 'paused';
 
 interface TransportControlsProps {
   state: TransportState;
+  /** Disables (Re)start - e.g. while the data to play is still loading, so
+   * a too-eager click can't play a stale placeholder instead. */
+  restartDisabled?: boolean;
   onRestart: () => void;
   onPause: () => void;
   onResume: () => void;
@@ -14,6 +17,7 @@ interface TransportControlsProps {
  * auto-starts; every control here requires a user gesture to act. */
 export function TransportControls({
   state,
+  restartDisabled = false,
   onRestart,
   onPause,
   onResume,
@@ -23,8 +27,12 @@ export function TransportControls({
 }: TransportControlsProps) {
   return (
     <div>
-      <button type="button" onClick={onRestart}>
-        {state === 'stopped' ? '▶ Play' : '↻ Restart'}
+      <button type="button" onClick={onRestart} disabled={restartDisabled}>
+        {restartDisabled && state === 'stopped'
+          ? 'Loading…'
+          : state === 'stopped'
+            ? '▶ Play'
+            : '↻ Restart'}
       </button>
       <button
         type="button"
