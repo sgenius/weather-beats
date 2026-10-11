@@ -5,9 +5,13 @@ turns it into a short, replayable soundscape you can listen to and identify
 by ear. See [`PLAN.md`](./PLAN.md) for the product plan and staged roadmap,
 and [`coding-standards.md`](./coding-standards.md) for how we work.
 
-> Status: Stage 0 (foundation) - scaffold, lint/format tooling and CI are in
-> place. Design tokens, the core data contracts, tests and the weather
-> display land in follow-up Stage 0/1 PRs.
+> Status: Stage 1 (MVP) in progress - steps 1-7 of 10 are merged: data
+> display, location + units, live weather, the sonification core (both
+> playback modes), the Tone.js audio renderer, and full transport controls
+> (mode toggle, restart/pause/stop/volume). Press Play in the running app to
+> hear it. Remaining: the "what you're hearing" panel, the full sandbox, and
+> polish/exit-criteria. See the [tracking issue](https://github.com/sgenius/weather-beats/issues/14)
+> for the current PR-by-PR checklist.
 
 ## Getting started
 
