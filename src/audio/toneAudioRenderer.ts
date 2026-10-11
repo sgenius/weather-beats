@@ -97,7 +97,16 @@ export class ToneAudioRenderer implements AudioRenderer {
   private readonly chains = new Map<TrackId, TrackChain>();
 
   private ensureBus(): { fadeGain: Tone.Gain; volumeGain: Tone.Gain } {
-    this.volumeGain ??= new Tone.Gain(1).toDestination();
+    if (!this.volumeGain) {
+      // Three simultaneous tracks (one of them a chord) summed at each
+      // note's own velocity clip hard past 0dBFS. A compressor-based
+      // limiter alone can't catch that - its attack reacts to level over
+      // time, not an instantaneous sample peak - so fixed headroom comes
+      // first; the limiter after it is a safety net, not the fix itself.
+      const limiter = new Tone.Limiter(-3).toDestination();
+      const headroom = new Tone.Gain(0.5).connect(limiter);
+      this.volumeGain = new Tone.Gain(1).connect(headroom);
+    }
     this.fadeGain ??= new Tone.Gain(1).connect(this.volumeGain);
     return { fadeGain: this.fadeGain, volumeGain: this.volumeGain };
   }
