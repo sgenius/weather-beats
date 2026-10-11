@@ -22,4 +22,8 @@ export interface AudioRenderer {
   /** Sets the master volume, 0 (silent) to 1 (full), independent of the
    * piece's own fade-out envelope. */
   setVolume(volume: number): void;
+  /** Current playback position in seconds from the piece's start - frozen
+   * while paused, 0 once stopped. Lets the "what you're hearing" panel
+   * follow the audio clock itself instead of a parallel UI timer. */
+  getPositionSeconds(): number;
 }
