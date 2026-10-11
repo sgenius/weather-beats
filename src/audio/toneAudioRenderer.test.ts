@@ -50,6 +50,7 @@ class FakeTransport {
   stop = vi.fn();
   pause = vi.fn();
   cancel = vi.fn();
+  seconds = 0;
 }
 
 const fakeTransport = new FakeTransport();
@@ -205,6 +206,13 @@ describe('ToneAudioRenderer', () => {
     renderer.setVolume(0.4);
 
     expect(FakeGain.instances[1].gain.rampTo).toHaveBeenCalledWith(0.4, 0.05);
+  });
+
+  it("getPositionSeconds() reads the transport's own clock", () => {
+    const renderer = new ToneAudioRenderer();
+    fakeTransport.seconds = 4.25;
+
+    expect(renderer.getPositionSeconds()).toBe(4.25);
   });
 
   it("waits for each chain's reverb to be ready before scheduling/starting playback", async () => {

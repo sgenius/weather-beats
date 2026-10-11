@@ -193,4 +193,8 @@ export class ToneAudioRenderer implements AudioRenderer {
     const { volumeGain } = this.ensureBus();
     volumeGain.gain.rampTo(volume, VOLUME_RAMP_SECONDS);
   }
+
+  getPositionSeconds(): number {
+    return Tone.getTransport().seconds;
+  }
 }
