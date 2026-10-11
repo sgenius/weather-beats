@@ -58,6 +58,18 @@ describe('TransportControls', () => {
     expect(onRestart).toHaveBeenCalled();
   });
 
+  it('shows "Loading…" and disables the primary button when restartDisabled while stopped', () => {
+    const { onRestart } = renderControls({
+      state: 'stopped',
+      restartDisabled: true,
+    });
+    const button = screen.getByRole('button', { name: 'Loading…' });
+    expect(button).toBeDisabled();
+
+    fireEvent.click(button);
+    expect(onRestart).not.toHaveBeenCalled();
+  });
+
   it('calls onVolumeChange with the new value', () => {
     const { onVolumeChange } = renderControls({ volume: 0.5 });
     fireEvent.change(screen.getByLabelText('Volume'), {
