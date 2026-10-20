@@ -25,8 +25,10 @@ timeline authoring, save/load presets) and step 10 (polish + exit criteria).
   A step that would exceed the ~250-line soft cap (400 hard cap, enforced by
   the `pr-size` CI check) splits into `5a`/`5b`-style sub-steps - each still
   its own PR, reviewed and merged before the next starts.
-- After opening a PR: call `subscribe_pr_activity` on it and update the
-  tracking issue's checklist (check off the step, add the PR link).
+- After opening a PR: update the tracking issue's checklist (add the PR
+  link). Don't self-subscribe to PR/CI activity to auto-continue, and don't
+  start the next PR until the reviewer says in the working conversation
+  that the current one has been reviewed (coding-standards.md §4).
 - After a PR merges: sync local `main`, update the tracking issue again if
   it wasn't already current.
 - Full verification before every push: `npm run typecheck && npm run lint
@@ -34,12 +36,13 @@ timeline authoring, save/load presets) and step 10 (polish + exit criteria).
   changes, also drive the real app with a headless-Chromium Playwright
   script (dev server or `npm run build && npm run preview`) and check for
   console errors - unit tests alone have repeatedly missed real bugs here
-  (see "Audio bugs found" below).
+  (see "Known resolved issues" below).
 - Inline replies to GitHub review comments on this repo's own PRs
   routinely fail ("only one pending review per PR") because the review
   account and the posting account are the same identity in this setup;
-  the fallback is a top-level PR comment summarizing the fixes, plus
-  `resolve_thread` on each addressed thread.
+  the fallback is a top-level PR comment summarizing the fixes. Never mark
+  a review thread resolved - that's the reviewer's call (coding-standards.md
+  §1).
 
 ## Audio engine gotchas (learned the hard way)
 
