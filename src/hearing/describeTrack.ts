@@ -39,20 +39,28 @@ export function midiNoteName(midiNote: number): string {
 function describeNotes(midiNotes: number[]): string {
   const names = midiNotes.map(midiNoteName).join(' ');
   if (midiNotes.length < 2) return names;
+  // Assumes a root-position major or minor triad - the only chords
+  // buildScorePlan's chordFor() generates today. Anything else (inversions,
+  // 7ths, sus/dim/aug) would be mislabeled; revisit when Stage 4 widens
+  // chord vocabulary.
   const quality = midiNotes[1] - midiNotes[0] === 4 ? 'major' : 'minor';
   return `${names} (${quality} chord)`;
 }
 
-function percent(value: number): string {
-  return `${Math.round(value * 100)}%`;
-}
+const PERCENT = new Intl.NumberFormat(undefined, {
+  style: 'percent',
+  maximumFractionDigits: 0,
+});
 
 export function describeTrack({ note, levers }: TrackMoment): string {
   const parts = note
-    ? [describeNotes(note.midiNotes), `loudness ${percent(note.velocity)}`]
+    ? [
+        describeNotes(note.midiNotes),
+        `loudness ${PERCENT.format(note.velocity)}`,
+      ]
     : ['silent'];
   for (const [lever, value] of Object.entries(levers)) {
-    parts.push(`${LEVER_LABELS[lever as SoundLever]} ${percent(value)}`);
+    parts.push(`${LEVER_LABELS[lever as SoundLever]} ${PERCENT.format(value)}`);
   }
   return parts.join(' · ');
 }

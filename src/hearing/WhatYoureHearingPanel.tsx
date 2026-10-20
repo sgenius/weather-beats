@@ -5,6 +5,7 @@ import {
   formatPrecipitation,
   formatTemperature,
 } from '../display/formatWeather';
+import { capitalize } from '../helpers/text';
 import type { TemperatureUnit } from '../units/temperatureUnit';
 import { describePlanAt, sampleIndexAt } from './describePlanAt';
 import { describeTrack } from './describeTrack';
@@ -16,10 +17,6 @@ interface WhatYoureHearingPanelProps {
   timeline: WeatherTimeline;
   unit: TemperatureUnit;
   positionSeconds: number;
-}
-
-function capitalize(text: string): string {
-  return text.charAt(0).toUpperCase() + text.slice(1);
 }
 
 /**
